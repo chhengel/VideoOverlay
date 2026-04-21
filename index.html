@@ -1,0 +1,1271 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video-Overlay-App</title>
+  <style>
+    :root {
+      --bg: #e5e7eb;
+      --panel: #f3f4f6;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #0f172a;
+      --accent-2: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .app {
+      display: grid;
+      grid-template-columns: minmax(320px, 400px) 1fr;
+      min-height: 100vh;
+      gap: 18px;
+      padding: 12px;
+    }
+    .sidebar {
+      padding: 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: auto;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+    }
+    .stage {
+      display: grid;
+      grid-template-rows: auto auto auto;
+      align-content: start;
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+    }
+    h1 { font-size: 1.05rem; margin: 0 0 14px 0; }
+    .dropzone {
+      padding: 20px 14px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: #f8fafc;
+      transition: 0.15s ease;
+      margin-bottom: 16px;
+    }
+    .dropzone.active {
+      border-color: var(--accent-2);
+      background: #eff6ff;
+      color: #1e3a8a;
+    }
+    .dropzone button { margin-top: 10px; }
+    .toolbar-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .tab-btn, .ghost-btn, .primary-btn {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab-btn.active, .primary-btn {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .accordion { display: grid; gap: 10px; }
+    .acc-item {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .acc-head {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: #fff;
+      border: 0;
+      cursor: pointer;
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .acc-head span:last-child {
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .acc-body { display: none; padding: 0 14px 14px 14px; }
+    .acc-item.open .acc-body { display: block; }
+    .grid2, .grid3 { display: grid; gap: 10px; margin-bottom: 10px; }
+    .grid2 { grid-template-columns: 1fr 1fr; }
+    .grid3 { grid-template-columns: repeat(3, 1fr); }
+    label {
+      display: block;
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    input[type="number"], input[type="text"], select, button, input[type="color"] {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 9px 10px;
+      font-size: 0.92rem;
+    }
+    input[type="color"] { padding: 4px; height: 42px; }
+    input[type="range"] { width: 100%; }
+    .timeline-wrap {
+      position: relative;
+      margin-top: 2px;
+    }
+    .timeline-overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 8px;
+      transform: translateY(-50%);
+      pointer-events: none;
+      border-radius: 999px;
+    }
+    .timeline-range {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background: rgba(29, 78, 216, 0.22);
+      border-radius: 999px;
+    }
+    .timeline-marker {
+      position: absolute;
+      top: -4px;
+      width: 3px;
+      height: 16px;
+      background: #1d4ed8;
+      border-radius: 2px;
+    }
+    .toolbar {
+      padding: 14px 18px 10px 18px;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+    .canvas-wrap {
+      position: relative;
+      display: grid;
+      place-items: start center;
+      padding: 6px 18px 8px 18px;
+    }
+    canvas {
+      max-width: calc(100vw - 470px);
+      max-height: calc(100vh - 220px);
+      background: #000;
+      border-radius: 16px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+      touch-action: none;
+    }
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 12px 18px 16px 18px;
+      background: transparent;
+    }
+    .hint { font-size: 0.8rem; color: var(--muted); line-height: 1.35; }
+    .status {
+      font-size: 0.84rem;
+      color: var(--muted);
+      white-space: pre-line;
+      min-height: 20px;
+      margin-top: 6px;
+    }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { flex: 1; }
+    .tiny { font-size: 0.75rem; color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      canvas { max-width: calc(100vw - 48px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>Videoanalyse mit Koordinaten-Overlay</h1>
+
+      <div id="dropzone" class="dropzone">
+        <div>Video hier hineinziehen oder per Explorer auswählen</div>
+        <button id="openFileBtn" class="primary-btn" style="max-width:280px;" type="button">Video öffnen</button>
+      </div>
+      <input id="fileInput" type="file" accept="video/*" style="display:none" />
+
+      <div class="toolbar-tabs">
+        <button class="tab-btn active" data-tab="view" type="button">Ansicht</button>
+        <button class="tab-btn" data-tab="axes" type="button">Achsen</button>
+        <button class="tab-btn" data-tab="time" type="button">Zeit</button>
+        <button class="tab-btn" data-tab="export" type="button">Export</button>
+      </div>
+
+      <div id="panelView">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Ansicht einstellen</span><span>Nur Darstellung</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <button id="modePanBtn" class="ghost-btn" type="button">Achsen verschieben</button>
+                <button id="modeOriginBtn" class="ghost-btn" type="button">Ursprung setzen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelAxes" style="display:none">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Maßstab einstellen</span><span>Zwei Punkte anklicken</span></button>
+            <div class="acc-body">
+              <div class="hint" style="margin-bottom:10px;">Sobald dieses Menü geöffnet ist, erscheint im Bild eine Referenzstrecke mit zwei verschiebbaren Punkten.</div>
+              <div class="grid1" style="margin-bottom:10px;">
+                <button id="applyScaleBtn" class="primary-btn" type="button">Maßstab aus Referenzstrecke setzen</button>
+              </div>
+              <div class="grid2">
+                <div><label>Strecke [Einheiten]</label><input id="scaleDistanceInput" type="number" min="0.0001" step="0.01" value="1" /></div>
+                <div><label>Einheit</label><input id="scaleUnitInput" type="text" value="m" /></div>
+              </div>
+              <label>Streckenwert per Schieberegler</label>
+              <input id="scaleDistanceSlider" type="range" min="0.1" max="10" step="0.1" value="1" />
+              <div class="grid3">
+                <div><label>Slider min</label><input id="scaleSliderMin" type="number" step="0.1" value="0.1" /></div>
+                <div><label>Slider max</label><input id="scaleSliderMax" type="number" step="0.1" value="10" /></div>
+                <div><label>Slider Schritt</label><input id="scaleSliderStep" type="number" step="0.01" value="0.1" /></div>
+              </div>
+              <button id="autoTicksBtn" class="ghost-btn" type="button">Sinnvolle Tick-Einteilung</button>
+            </div>
+          </div>
+          <div class="acc-item">
+            <button class="acc-head" type="button"><span>Achsen einstellen</span><span>Farben, Ticks, Bereich</span></button>
+            <div class="acc-body">
+              <div class="color-row">
+                <div><label>Achsenfarbe</label><input id="axisColor" type="color" value="#000000" /></div>
+                <div><label>Gridfarbe</label><input id="gridColor" type="color" value="#000000" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Achsenstärke</label><input id="axisWidth" type="number" min="0.5" step="0.5" value="3.5" /></div>
+                <div><label>Achsen-Deckkraft</label><input id="axisOpacity" type="number" min="0" max="1" step="0.05" value="0.9" /></div>
+                <div><label>Schriftgröße</label><input id="labelFontSize" type="number" min="8" step="1" value="14" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Grid-Stärke</label><input id="gridWidth" type="number" min="0.25" step="0.25" value="2" /></div>
+                <div><label>Grid-Deckkraft</label><input id="gridOpacity" type="number" min="0" max="1" step="0.05" value="0.9" /></div>
+                <div><label>Pfeilgröße</label><input id="arrowSize" type="number" min="6" step="1" value="12" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Tick-Abstand x</label><input id="tickX" type="number" min="0.0001" step="0.1" value="1" /></div>
+                <div><label>Tick-Abstand y</label><input id="tickY" type="number" min="0.0001" step="0.1" value="1" /></div>
+                <div><label>Zahl an jedem n-ten Tick</label><input id="labelEvery" type="number" min="1" step="1" value="1" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>x_min</label><input id="xMinInput" type="number" step="0.1" value="-5" /></div>
+                <div><label>x_max</label><input id="xMaxInput" type="number" step="0.1" value="5" /></div>
+                <div><label>y_min</label><input id="yMinInput" type="number" step="0.1" value="-3" /></div>
+                <div><label>y_max</label><input id="yMaxInput" type="number" step="0.1" value="3" /></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelTime" style="display:none">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Zeitstempel einstellen</span><span>Größe, Position, Hintergrund</span></button>
+            <div class="acc-body">
+              <div class="grid3">
+                <div><label>Größe</label><input id="timeFontSize" type="number" min="8" step="1" value="26" /></div>
+                <div><label>X-Position [px]</label><input id="timePosX" type="number" step="1" value="30" /></div>
+                <div><label>Y-Position [px]</label><input id="timePosY" type="number" step="1" value="40" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Textfarbe</label><input id="timeColor" type="color" value="#ffffff" /></div>
+                <div><label>Deckkraft</label><input id="timeOpacity" type="number" min="0" max="1" step="0.05" value="0.95" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Hintergrundfarbe</label><input id="timeBgColor" type="color" value="#ffffff" /></div>
+                <div><label>Hintergrund-Deckkraft</label><input id="timeBgOpacity" type="number" min="0" max="1" step="0.05" value="0.85" /></div>
+              </div>
+              <div class="grid2">
+                <button id="toggleTimestampBtn" class="ghost-btn" type="button">Zeitstempel ein/aus</button>
+                <button id="resetTimestampPosBtn" class="ghost-btn" type="button">Position zurücksetzen</button>
+              </div>
+              <div class="grid2">
+                <button id="toggleTimestampBgBtn" class="ghost-btn" type="button">Hintergrundfeld ein/aus</button>
+                <button id="setTimestampBgDefaultBtn" class="ghost-btn" type="button">weißes Feld / schwarze Schrift</button>
+              </div>
+            </div>
+          </div>
+          <div class="acc-item">
+            <button class="acc-head" type="button"><span>Zeit kalibrieren</span><span>Navigation und Kalibrierung</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <div><label>Framerate [fps]</label><input id="fpsInput" type="number" min="0.1" step="0.001" value="30" /></div>
+                <div><label>Aktueller Frame</label><input id="currentFrameInput" type="number" min="0" step="1" value="0" /></div>
+              </div>
+              <div class="grid2">
+                <button id="setT0CurrentFrameBtn" class="primary-btn" type="button">t=0 im aktuellen Frame</button>
+                <button id="restoreDetectedFpsBtn" class="ghost-btn" type="button">Zur erkannten Framerate zurück</button>
+              </div>
+              <div class="hint" style="margin-bottom:10px;">Erkannte Framerate: <span id="detectedFpsText" class="mono">–</span></div>
+
+              <div class="grid2">
+                <div><label>Zeitpunkt A [s]</label><input id="timeCalA" type="number" step="0.001" value="0" /></div>
+                <div><label>Zeitpunkt B [s]</label><input id="timeCalB" type="number" step="0.001" value="1" /></div>
+              </div>
+              <div class="grid2">
+                <button id="captureTimeABtn" class="ghost-btn" type="button">Frame als A merken</button>
+                <button id="captureTimeBBtn" class="ghost-btn" type="button">Frame als B merken</button>
+              </div>
+              <div class="grid2">
+                <button id="applyTimeCalibrationBtn" class="primary-btn" type="button">Framerate aus A/B berechnen</button>
+                <button id="modeTimeBtn" class="ghost-btn" type="button">Zeit-Kalibrierungsmodus</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelExport" style="display:none">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Export</span><span>Frame oder Video</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <button id="exportPngBtn" class="ghost-btn" type="button">Aktuellen Frame als PNG</button>
+                <button id="exportVideoBtn" class="primary-btn" type="button">Video mit Overlay exportieren</button>
+              </div>
+              <div class="status" id="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <div class="toolbar">
+        Lokales Video öffnen · Frameweise navigieren · Koordinatensystem per Drag & Drop · Export mit Overlay
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="1280" height="720"></canvas>
+        <video id="video" style="display:none" playsinline muted crossorigin="anonymous"></video>
+      </div>
+
+      <div class="footer">
+        <div class="row" style="margin-bottom:8px;">
+          <button id="prevFrameBtn" class="ghost-btn" type="button">◀ 1 Frame</button>
+          <button id="playPauseBtn" class="ghost-btn" type="button">▶ / ❚❚</button>
+          <button id="nextFrameBtn" class="ghost-btn" type="button">1 Frame ▶</button>
+        </div>
+        <div class="timeline-wrap">
+          <div class="timeline-overlay" id="timelineOverlay">
+            <div class="timeline-range" id="timelineRange"></div>
+            <div class="timeline-marker" id="timelineStartMarker"></div>
+            <div class="timeline-marker" id="timelineEndMarker"></div>
+          </div>
+          <input id="timeline" type="range" min="0" max="0" step="0.000001" value="0" />
+        </div>
+        <div class="grid3" style="margin-top:10px;">
+          <button id="setFirstFrameBtn" class="ghost-btn" type="button">als ersten Frame festlegen</button>
+          <button id="setLastFrameBtn" class="ghost-btn" type="button">als letzten Frame festlegen</button>
+          <button id="setT0AsFirstFrameBtn" class="ghost-btn" type="button">Erster Frame bei t=0</button>
+        </div>
+        <div class="tiny" id="metaText" style="margin-top:8px;">Kein Video geladen.</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const canvas = $('canvas');
+    const ctx = canvas.getContext('2d');
+    const video = $('video');
+    const statusEl = $('status');
+    const timeline = $('timeline');
+    const metaText = $('metaText');
+
+    const state = {
+      videoUrl: null, loaded: false, playing: false, mode: 'pan',
+      detectedFps: 30, originalDetectedFps: 30, fps: 30,
+      t0Frame: 0, currentFrame: 0, firstFrame: 0, lastFrame: null, drag: null,
+      origin: { x: 180, y: 540 }, pxPerUnit: 80, unit: 'm',
+      xMin: -2, xMax: 10, yMin: -5, yMax: 2,
+      axis: { color: '#000000', width: 3.5, opacity: 0.9, fontSize: 14, arrowSize: 12 },
+      grid: { color: '#000000', width: 2, opacity: 0.9 },
+      ticks: { x: 1, y: 1, labelEvery: 1 },
+      timestamp: { enabled: true, x: 30, y: 40, fontSize: 26, color: '#ffffff', opacity: 0.95, bgEnabled: false, bgColor: '#ffffff', bgOpacity: 0.85 },
+      scalePoints: [],
+      scaleVisible: false,
+      timeCal: { aFrame: null, bFrame: null, aTime: 0, bTime: 1 },
+      manualFrameTimeOverrides: new Map(),
+      handleRadius: 10
+    };
+
+    function setStatus(msg) { if (statusEl) statusEl.textContent = msg; }
+    function rgba(hex, alpha) {
+      const h = hex.replace('#', '');
+      const bigint = parseInt(h, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function round(v, d = 3) { return Number(v.toFixed(d)); }
+    function niceStep(raw) {
+      if (!isFinite(raw) || raw <= 0) return 1;
+      const exp = Math.floor(Math.log10(raw));
+      const base = raw / Math.pow(10, exp);
+      let nice;
+      if (base <= 1) nice = 1;
+      else if (base <= 2) nice = 2;
+      else if (base <= 5) nice = 5;
+      else nice = 10;
+      return nice * Math.pow(10, exp);
+    }
+
+    function canvasScaleX() {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width) return 1;
+      return canvas.width / rect.width;
+    }
+
+    function canvasScaleY() {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.height) return 1;
+      return canvas.height / rect.height;
+    }
+
+    function screenPxToCanvasPx(px) {
+      return px * 0.5 * (canvasScaleX() + canvasScaleY());
+    }
+
+    function setActiveTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+      });
+      $('panelView').style.display = tab === 'view' ? 'block' : 'none';
+      $('panelAxes').style.display = tab === 'axes' ? 'block' : 'none';
+      $('panelTime').style.display = tab === 'time' ? 'block' : 'none';
+      $('panelExport').style.display = tab === 'export' ? 'block' : 'none';
+      if (tab === 'axes') {
+        const scaleItem = $('panelAxes').querySelector('.acc-item');
+        state.scaleVisible = !!(scaleItem && scaleItem.classList.contains('open'));
+        if (state.scaleVisible) ensureDefaultScalePoints();
+      } else {
+        state.scaleVisible = false;
+      }
+      draw();
+    }
+
+    function ensureDefaultScalePoints() {
+      if (state.scalePoints.length === 2) return;
+      const cx = canvas.width * 0.5;
+      const cy = canvas.height * 0.18;
+      const half = Math.max(40, canvas.width * 0.08);
+      state.scalePoints = [
+        { x: cx - half, y: cy },
+        { x: cx + half, y: cy }
+      ];
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+    });
+    document.querySelectorAll('.acc-head').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.acc-item');
+        if (item) {
+          item.classList.toggle('open');
+          const isScaleHead = btn.textContent.includes('Maßstab einstellen');
+          if (isScaleHead) {
+            state.scaleVisible = item.classList.contains('open');
+            if (state.scaleVisible) {
+              ensureDefaultScalePoints();
+            }
+            draw();
+          }
+        }
+      });
+    });
+
+    function updateUiFromState() {
+      $('fpsInput').value = state.fps;
+            $('currentFrameInput').value = state.currentFrame;
+      $('detectedFpsText').textContent = state.detectedFps ? state.detectedFps.toFixed(3) : 'nicht erkannt';
+      $('axisColor').value = state.axis.color;
+      $('gridColor').value = state.grid.color;
+      $('axisWidth').value = state.axis.width;
+      $('axisOpacity').value = state.axis.opacity;
+      $('labelFontSize').value = state.axis.fontSize;
+      $('gridWidth').value = state.grid.width;
+      $('gridOpacity').value = state.grid.opacity;
+      $('arrowSize').value = state.axis.arrowSize;
+      $('tickX').value = state.ticks.x;
+      $('tickY').value = state.ticks.y;
+      $('labelEvery').value = state.ticks.labelEvery;
+      $('xMinInput').value = state.xMin;
+      $('xMaxInput').value = state.xMax;
+      $('yMinInput').value = state.yMin;
+      $('yMaxInput').value = state.yMax;
+      $('scaleUnitInput').value = state.unit;
+      $('timeFontSize').value = state.timestamp.fontSize;
+      $('timePosX').value = state.timestamp.x;
+      $('timePosY').value = state.timestamp.y;
+      $('timeColor').value = state.timestamp.color;
+      $('timeOpacity').value = state.timestamp.opacity;
+      $('timeBgColor').value = state.timestamp.bgColor;
+      $('timeBgOpacity').value = state.timestamp.bgOpacity;
+    }
+
+    function syncStateFromUi() {
+      state.fps = Math.max(0.001, parseFloat($('fpsInput').value) || 30);
+      state.axis.color = $('axisColor').value;
+      state.grid.color = $('gridColor').value;
+      state.axis.width = Math.max(0.1, parseFloat($('axisWidth').value) || 2.5);
+      state.axis.opacity = clamp(parseFloat($('axisOpacity').value) || 0.9, 0, 1);
+      state.axis.fontSize = Math.max(6, parseFloat($('labelFontSize').value) || 18);
+      state.grid.width = Math.max(0.1, parseFloat($('gridWidth').value) || 1);
+      state.grid.opacity = clamp(parseFloat($('gridOpacity').value) || 0.35, 0, 1);
+      state.axis.arrowSize = Math.max(4, parseFloat($('arrowSize').value) || 12);
+      state.ticks.x = Math.max(0.000001, parseFloat($('tickX').value) || 1);
+      state.ticks.y = Math.max(0.000001, parseFloat($('tickY').value) || 1);
+      state.ticks.labelEvery = Math.max(1, Math.round(parseFloat($('labelEvery').value) || 1));
+      state.xMin = parseFloat($('xMinInput').value) || -5;
+      state.xMax = parseFloat($('xMaxInput').value) || 5;
+      state.yMin = parseFloat($('yMinInput').value) || -3;
+      state.yMax = parseFloat($('yMaxInput').value) || 3;
+      state.unit = $('scaleUnitInput').value.trim() || 'm';
+      state.timestamp.fontSize = Math.max(6, parseFloat($('timeFontSize').value) || 26);
+      state.timestamp.x = parseFloat($('timePosX').value) || 30;
+      state.timestamp.y = parseFloat($('timePosY').value) || 40;
+      state.timestamp.color = $('timeColor').value;
+      state.timestamp.opacity = clamp(parseFloat($('timeOpacity').value) || 0.95, 0, 1);
+      state.timestamp.bgColor = $('timeBgColor').value;
+      state.timestamp.bgOpacity = clamp(parseFloat($('timeBgOpacity').value) || 0.85, 0, 1);
+      state.timeCal.aTime = parseFloat($('timeCalA').value) || 0;
+      state.timeCal.bTime = parseFloat($('timeCalB').value) || 1;
+      draw();
+    }
+
+    function resizeCanvasToVideo() {
+      if (!video.videoWidth || !video.videoHeight) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      state.origin = { x: canvas.width * 0.14, y: canvas.height * 0.8 };
+    }
+
+    function frameToTime(frame) {
+      if (state.manualFrameTimeOverrides.has(frame)) return state.manualFrameTimeOverrides.get(frame);
+      return (frame - state.t0Frame) / state.fps;
+    }
+    function currentVideoFrame() { return Math.round(video.currentTime * state.fps); }
+
+    function totalFrames() {
+      return Math.max(0, Math.round(video.duration * state.fps) - 1);
+    }
+
+    function clampToSelectedRange(frame) {
+      const start = Math.min(state.firstFrame, state.lastFrame ?? totalFrames());
+      const end = Math.max(state.firstFrame, state.lastFrame ?? totalFrames());
+      return clamp(frame, start, end);
+    }
+
+    function updateTimelineSelection() {
+      const maxF = Math.max(1, totalFrames());
+      const first = clamp(state.firstFrame ?? 0, 0, maxF);
+      const last = clamp((state.lastFrame ?? maxF), 0, maxF);
+      const start = Math.min(first, last);
+      const end = Math.max(first, last);
+      const startPct = (start / maxF) * 100;
+      const endPct = (end / maxF) * 100;
+      const range = $('timelineRange');
+      const startMarker = $('timelineStartMarker');
+      const endMarker = $('timelineEndMarker');
+      range.style.left = startPct + '%';
+      range.style.width = Math.max(0, endPct - startPct) + '%';
+      startMarker.style.left = 'calc(' + startPct + '% - 1px)';
+      endMarker.style.left = 'calc(' + endPct + '% - 1px)';
+      range.style.display = 'block';
+      startMarker.style.display = 'block';
+      endMarker.style.display = 'block';
+    }
+
+    function seekVideo(time) {
+      return new Promise((resolve) => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          resolve();
+        };
+        video.addEventListener('seeked', onSeeked, { once: true });
+        video.currentTime = clamp(time, 0, Math.max(0, video.duration || time));
+      });
+    }
+
+    async function gotoFrame(frame) {
+      if (!state.loaded) return;
+      const maxFrame = totalFrames();
+      const target = clampToSelectedRange(clamp(Math.round(frame), 0, maxFrame));
+      state.currentFrame = target;
+      $('currentFrameInput').value = target;
+      const t = clamp(target / state.fps, 0, Math.max(0, video.duration - 1 / Math.max(state.fps, 1)));
+      await seekVideo(t);
+      draw();
+    }
+
+    async function stepFrame(delta) {
+      if (!state.loaded) return;
+      await gotoFrame(state.currentFrame + delta);
+    }
+
+    async function loadVideoFile(file) {
+      if (!file) return;
+      if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
+      state.videoUrl = URL.createObjectURL(file);
+      state.loaded = false;
+      setStatus('Video wird geladen ...');
+
+      const ok = await new Promise((resolve) => {
+        const onLoaded = () => { cleanup(); resolve(true); };
+        const onError = () => { cleanup(); resolve(false); };
+        function cleanup() {
+          video.removeEventListener('loadedmetadata', onLoaded);
+          video.removeEventListener('canplay', onLoaded);
+          video.removeEventListener('error', onError);
+        }
+        video.addEventListener('loadedmetadata', onLoaded, { once: true });
+        video.addEventListener('canplay', onLoaded, { once: true });
+        video.addEventListener('error', onError, { once: true });
+        video.src = state.videoUrl;
+        video.load();
+      });
+
+      if (!ok || !video.videoWidth || !video.videoHeight) {
+        setStatus('Video konnte nicht geladen werden.');
+        draw();
+        return;
+      }
+
+      resizeCanvasToVideo();
+      timeline.max = Math.max(video.duration, 0);
+      timeline.value = 0;
+      state.loaded = true;
+      state.detectedFps = 30;
+      state.originalDetectedFps = 30;
+      state.fps = 30;
+      state.t0Frame = 0;
+      state.currentFrame = 0;
+      state.firstFrame = 0;
+      state.lastFrame = Math.max(0, Math.round(video.duration * state.fps) - 1);
+      state.manualFrameTimeOverrides.clear();
+      autoSetupRanges();
+      ensureDefaultScalePoints();
+      updateUiFromState();
+      await gotoFrame(0);
+      setStatus('Video geladen: ' + file.name);
+    }
+
+    function autoSetupRanges() {
+      const marginPx = 40;
+      state.xMin = round((marginPx - state.origin.x) / state.pxPerUnit, 2);
+      state.xMax = round((canvas.width - marginPx - state.origin.x) / state.pxPerUnit, 2);
+      state.yMin = round((state.origin.y - (canvas.height - marginPx)) / state.pxPerUnit, 2);
+      state.yMax = round((state.origin.y - marginPx) / state.pxPerUnit, 2);
+
+      const xHalf = Math.max(Math.abs(state.xMin), Math.abs(state.xMax));
+      const yHalf = Math.max(Math.abs(state.yMin), Math.abs(state.yMax));
+      const commonHalf = Math.max(xHalf, yHalf);
+
+      state.xMin = -commonHalf;
+      state.xMax = commonHalf;
+      state.yMin = -commonHalf;
+      state.yMax = commonHalf;
+
+      autoTicks();
+    }
+
+    function autoTicks() {
+      const xSpan = Math.max(1e-9, state.xMax - state.xMin);
+      const ySpan = Math.max(1e-9, state.yMax - state.yMin);
+      const common = niceStep(Math.max(xSpan / 8, ySpan / 6));
+      state.ticks.x = common;
+      state.ticks.y = common;
+      state.ticks.labelEvery = 1;
+      updateUiFromState();
+      draw();
+    }
+
+    function worldToScreen(x, y) {
+      return { x: state.origin.x + x * state.pxPerUnit, y: state.origin.y - y * state.pxPerUnit };
+    }
+    function screenToWorld(x, y) {
+      return { x: (x - state.origin.x) / state.pxPerUnit, y: (state.origin.y - y) / state.pxPerUnit };
+    }
+
+    function drawArrow(x1, y1, x2, y2, color, width, arrowSize) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - arrowSize * Math.cos(angle - Math.PI / 6), y2 - arrowSize * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - arrowSize * Math.cos(angle + Math.PI / 6), y2 - arrowSize * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+    }
+
+    function formatTick(v) {
+      const av = Math.abs(v);
+      if (av >= 1000 || (av > 0 && av < 0.01)) return v.toExponential(1);
+      if (Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+      return String(round(v, 3));
+    }
+
+    function axisHandles() {
+      const xLeft = worldToScreen(state.xMin, 0);
+      const xRight = worldToScreen(state.xMax, 0);
+      const yBottom = worldToScreen(0, state.yMin);
+      const yTop = worldToScreen(0, state.yMax);
+      return {
+        xMin: { x: xLeft.x, y: xLeft.y, cursor: 'ew-resize' },
+        xMax: { x: xRight.x, y: xRight.y, cursor: 'ew-resize' },
+        yMin: { x: yBottom.x, y: yBottom.y, cursor: 'ns-resize' },
+        yMax: { x: yTop.x, y: yTop.y, cursor: 'ns-resize' }
+      };
+    }
+
+    function drawHandle(x, y, fill) {
+      ctx.save();
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, state.handleRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGridAndAxes() {
+      const axisColor = rgba(state.axis.color, state.axis.opacity);
+      const gridColor = rgba(state.grid.color, state.grid.opacity);
+      const fsize = screenPxToCanvasPx(state.axis.fontSize);
+      ctx.save();
+      ctx.font = fsize + 'px Inter, Arial, sans-serif';
+      ctx.textBaseline = 'top';
+
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = state.grid.width;
+      for (let x = Math.ceil(state.xMin / state.ticks.x) * state.ticks.x; x <= state.xMax + 1e-12; x += state.ticks.x) {
+        const p = worldToScreen(x, 0);
+        ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, canvas.height); ctx.stroke();
+      }
+      for (let y = Math.ceil(state.yMin / state.ticks.y) * state.ticks.y; y <= state.yMax + 1e-12; y += state.ticks.y) {
+        const p = worldToScreen(0, y);
+        ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(canvas.width, p.y); ctx.stroke();
+      }
+
+      const xLeft = worldToScreen(state.xMin, 0);
+      const xRight = worldToScreen(state.xMax, 0);
+      const yBottom = worldToScreen(0, state.yMin);
+      const yTop = worldToScreen(0, state.yMax);
+      drawArrow(xLeft.x, xLeft.y, xRight.x, xRight.y, axisColor, state.axis.width, state.axis.arrowSize);
+      drawArrow(yBottom.x, yBottom.y, yTop.x, yTop.y, axisColor, state.axis.width, state.axis.arrowSize);
+
+      ctx.strokeStyle = axisColor;
+      ctx.fillStyle = axisColor;
+      ctx.lineWidth = state.axis.width;
+
+      const tickLen = 8;
+      let i = 0;
+      for (let x = Math.ceil(state.xMin / state.ticks.x) * state.ticks.x; x <= state.xMax + 1e-12; x += state.ticks.x, i++) {
+        const p = worldToScreen(x, 0);
+        ctx.beginPath(); ctx.moveTo(p.x, p.y - tickLen); ctx.lineTo(p.x, p.y + tickLen); ctx.stroke();
+        if (((i + 1) % state.ticks.labelEvery === 0) && Math.abs(x) > 1e-12) {
+          const txt = formatTick(x);
+          const w = ctx.measureText(txt).width;
+          ctx.fillText(txt, p.x - w / 2, p.y + 10);
+        }
+      }
+      i = 0;
+      for (let y = Math.ceil(state.yMin / state.ticks.y) * state.ticks.y; y <= state.yMax + 1e-12; y += state.ticks.y, i++) {
+        const p = worldToScreen(0, y);
+        ctx.beginPath(); ctx.moveTo(p.x - tickLen, p.y); ctx.lineTo(p.x + tickLen, p.y); ctx.stroke();
+        if (((i + 1) % state.ticks.labelEvery === 0) && Math.abs(y) > 1e-12) {
+          const txt = formatTick(y);
+          ctx.fillText(txt, p.x + 12, p.y - fsize * 0.5);
+        }
+      }
+      ctx.fillText('0', state.origin.x + 8, state.origin.y + 8);
+
+      const hs = axisHandles();
+      drawHandle(hs.xMin.x, hs.xMin.y, '#fde68a');
+      drawHandle(hs.xMax.x, hs.xMax.y, '#fde68a');
+      drawHandle(hs.yMin.x, hs.yMin.y, '#fca5a5');
+      drawHandle(hs.yMax.x, hs.yMax.y, '#fca5a5');
+      drawHandle(state.origin.x, state.origin.y, '#93c5fd');
+
+      if (state.scaleVisible && state.scalePoints.length > 0) {
+        ctx.strokeStyle = '#f59e0b';
+        ctx.fillStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        state.scalePoints.forEach((p, idx) => {
+          ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillText(String(idx + 1), p.x + 10, p.y - 14);
+        });
+        if (state.scalePoints.length === 2) {
+          ctx.beginPath();
+          ctx.moveTo(state.scalePoints[0].x, state.scalePoints[0].y);
+          ctx.lineTo(state.scalePoints[1].x, state.scalePoints[1].y);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawTimestamp() {
+      if (!state.timestamp.enabled) return;
+      const txt = 't = ' + frameToTime(state.currentFrame).toFixed(3) + ' s';
+      ctx.save();
+      const tsFont = screenPxToCanvasPx(state.timestamp.fontSize);
+      ctx.font = tsFont + 'px Inter, Arial, sans-serif';
+      ctx.textBaseline = 'top';
+      const w = ctx.measureText(txt).width;
+      const padX = 10;
+      const padY = 6;
+      const boxW = w + 2 * padX;
+      const boxH = tsFont + 2 * padY;
+      if (state.timestamp.bgEnabled) {
+        const x = state.timestamp.x - padX;
+        const y = state.timestamp.y - padY;
+        const r = 10;
+        ctx.fillStyle = rgba(state.timestamp.bgColor, state.timestamp.bgOpacity);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + boxW - r, y);
+        ctx.quadraticCurveTo(x + boxW, y, x + boxW, y + r);
+        ctx.lineTo(x + boxW, y + boxH - r);
+        ctx.quadraticCurveTo(x + boxW, y + boxH, x + boxW - r, y + boxH);
+        ctx.lineTo(x + r, y + boxH);
+        ctx.quadraticCurveTo(x, y + boxH, x, y + boxH - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.fillStyle = rgba(state.timestamp.color, state.timestamp.opacity);
+      ctx.fillText(txt, state.timestamp.x, state.timestamp.y);
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (state.loaded) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#dbe4ef';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#64748b';
+        ctx.font = '28px Inter, sans-serif';
+        ctx.fillText('Video per Drag-and-drop oder Dateidialog laden', 40, 60);
+      }
+      drawGridAndAxes();
+      drawTimestamp();
+      updateMeta();
+    }
+
+    function updateMeta() {
+      if (!state.loaded) {
+        metaText.textContent = 'Kein Video geladen.';
+        return;
+      }
+      const currentTime = frameToTime(state.currentFrame).toFixed(3);
+      const totalF = totalFrames();
+      metaText.textContent = 'Video: ' + video.videoWidth + '×' + video.videoHeight + ' px | Dauer: ' + video.duration.toFixed(3) + ' s | fps: ' + state.fps.toFixed(3) + ' | Frame: ' + state.currentFrame + '/' + totalF + ' | Auswahl: ' + state.firstFrame + '–' + (state.lastFrame ?? totalF) + ' | t = ' + currentTime + ' s';
+      timeline.max = video.duration;
+      timeline.value = video.currentTime;
+      updateTimelineSelection();
+    }
+
+    function pointerPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: (evt.clientX - rect.left) * (canvas.width / rect.width), y: (evt.clientY - rect.top) * (canvas.height / rect.height) };
+    }
+    function hitCircle(p, c, r) {
+      return Math.hypot(p.x - c.x, p.y - c.y) <= (r || (state.handleRadius + 4));
+    }
+
+    function timestampRect() {
+      ctx.save();
+      const tsFont = screenPxToCanvasPx(state.timestamp.fontSize);
+      ctx.font = tsFont + 'px Inter, Arial, sans-serif';
+      const txt = 't = ' + frameToTime(state.currentFrame).toFixed(3) + ' s';
+      const w = ctx.measureText(txt).width;
+      ctx.restore();
+      const padX = state.timestamp.bgEnabled ? 10 : 6;
+      const padY = state.timestamp.bgEnabled ? 6 : 4;
+      return { x: state.timestamp.x - padX, y: state.timestamp.y - padY, w: w + 2 * padX, h: tsFont + 2 * padY };
+    }
+
+    function pointInRect(p, r) {
+      return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    }
+
+    canvas.addEventListener('pointerdown', (evt) => {
+      const p = pointerPos(evt);
+      canvas.setPointerCapture(evt.pointerId);
+      const hs = axisHandles();
+      if (state.scaleVisible && state.scalePoints.length === 2) {
+        if (hitCircle(p, state.scalePoints[0], 12)) {
+          state.drag = { type: 'scalePoint0', offsetX: p.x - state.scalePoints[0].x, offsetY: p.y - state.scalePoints[0].y };
+          return;
+        }
+        if (hitCircle(p, state.scalePoints[1], 12)) {
+          state.drag = { type: 'scalePoint1', offsetX: p.x - state.scalePoints[1].x, offsetY: p.y - state.scalePoints[1].y };
+          return;
+        }
+      }
+      if (hitCircle(p, state.origin)) {
+        state.drag = { type: 'origin', offsetX: p.x - state.origin.x, offsetY: p.y - state.origin.y };
+        return;
+      }
+      for (const key of Object.keys(hs)) {
+        if (hitCircle(p, hs[key])) {
+          state.drag = { type: key };
+          return;
+        }
+      }
+      if (state.timestamp.enabled && pointInRect(p, timestampRect())) {
+        state.drag = { type: 'timestamp', offsetX: p.x - state.timestamp.x, offsetY: p.y - state.timestamp.y };
+        return;
+      }
+      if (state.mode === 'origin') {
+        state.origin = { x: p.x, y: p.y };
+        autoSetupRanges();
+        updateUiFromState();
+        draw();
+        return;
+      }
+      if (state.mode === 'pan') {
+        state.drag = { type: 'pan', startX: p.x, startY: p.y, ox: state.origin.x, oy: state.origin.y };
+      }
+    });
+
+    canvas.addEventListener('pointermove', (evt) => {
+      const p = pointerPos(evt);
+      let cursor = 'default';
+      const hs = axisHandles();
+      if (state.scaleVisible && state.scalePoints.length === 2) {
+        if (hitCircle(p, state.scalePoints[0], 12) || hitCircle(p, state.scalePoints[1], 12)) cursor = 'move';
+      }
+      if (hitCircle(p, state.origin)) cursor = 'move';
+      for (const key of Object.keys(hs)) {
+        if (hitCircle(p, hs[key])) cursor = hs[key].cursor;
+      }
+      if (state.timestamp.enabled && pointInRect(p, timestampRect())) cursor = 'move';
+      canvas.style.cursor = cursor;
+      if (!state.drag) return;
+      if (state.drag.type === 'scalePoint0') {
+        state.scalePoints[0].x = p.x - state.drag.offsetX;
+        state.scalePoints[0].y = p.y - state.drag.offsetY;
+        draw();
+      } else if (state.drag.type === 'scalePoint1') {
+        state.scalePoints[1].x = p.x - state.drag.offsetX;
+        state.scalePoints[1].y = p.y - state.drag.offsetY;
+        draw();
+      } else if (state.drag.type === 'origin') {
+        state.origin.x = p.x - state.drag.offsetX;
+        state.origin.y = p.y - state.drag.offsetY;
+        draw();
+      } else if (state.drag.type === 'timestamp') {
+        state.timestamp.x = p.x - state.drag.offsetX;
+        state.timestamp.y = p.y - state.drag.offsetY;
+        $('timePosX').value = round(state.timestamp.x, 0);
+        $('timePosY').value = round(state.timestamp.y, 0);
+        draw();
+      } else if (state.drag.type === 'xMin') {
+        const w = screenToWorld(p.x, state.origin.y);
+        state.xMin = Math.min(w.x, state.xMax - 1e-6);
+        $('xMinInput').value = round(state.xMin, 3);
+        draw();
+      } else if (state.drag.type === 'xMax') {
+        const w = screenToWorld(p.x, state.origin.y);
+        state.xMax = Math.max(w.x, state.xMin + 1e-6);
+        $('xMaxInput').value = round(state.xMax, 3);
+        draw();
+      } else if (state.drag.type === 'yMin') {
+        const w = screenToWorld(state.origin.x, p.y);
+        state.yMin = Math.min(w.y, state.yMax - 1e-6);
+        $('yMinInput').value = round(state.yMin, 3);
+        draw();
+      } else if (state.drag.type === 'yMax') {
+        const w = screenToWorld(state.origin.x, p.y);
+        state.yMax = Math.max(w.y, state.yMin + 1e-6);
+        $('yMaxInput').value = round(state.yMax, 3);
+        draw();
+      } else if (state.drag.type === 'pan') {
+        state.origin.x = state.drag.ox + (p.x - state.drag.startX);
+        state.origin.y = state.drag.oy + (p.y - state.drag.startY);
+        draw();
+      }
+    });
+    canvas.addEventListener('pointerup', () => { state.drag = null; updateUiFromState(); });
+    canvas.addEventListener('pointercancel', () => { state.drag = null; });
+
+    $('openFileBtn').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) await loadVideoFile(file);
+    });
+
+    const dropzone = $('dropzone');
+    ['dragenter', 'dragover'].forEach(type => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('active');
+      });
+    });
+    ['dragleave', 'drop'].forEach(type => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (type === 'drop') {
+          const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+          dropzone.classList.remove('active');
+          if (file) loadVideoFile(file);
+        } else {
+          dropzone.classList.remove('active');
+        }
+      });
+    });
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => e.preventDefault());
+
+    $('prevFrameBtn').addEventListener('click', () => stepFrame(-1));
+    $('nextFrameBtn').addEventListener('click', () => stepFrame(1));
+    $('playPauseBtn').addEventListener('click', async () => {
+      if (!state.loaded) return;
+      if (video.paused) {
+        try { await video.play(); } catch (e) {}
+      } else {
+        video.pause();
+      }
+    });
+    video.addEventListener('timeupdate', () => {
+      if (!state.loaded) return;
+      state.currentFrame = currentVideoFrame();
+      $('currentFrameInput').value = state.currentFrame;
+      draw();
+    });
+    timeline.addEventListener('input', async (e) => {
+      if (!state.loaded) return;
+      await seekVideo(parseFloat(e.target.value) || 0);
+      state.currentFrame = clampToSelectedRange(currentVideoFrame());
+      await seekVideo(state.currentFrame / state.fps);
+      $('currentFrameInput').value = state.currentFrame;
+      draw();
+    });
+    $('currentFrameInput').addEventListener('change', () => gotoFrame(parseInt($('currentFrameInput').value, 10) || 0));
+
+    document.querySelectorAll('input, select').forEach(el => {
+      if (!['fileInput', 'timeline', 'currentFrameInput'].includes(el.id)) {
+        el.addEventListener('input', syncStateFromUi);
+        el.addEventListener('change', syncStateFromUi);
+      }
+    });
+
+    $('modePanBtn').addEventListener('click', () => { state.mode = 'pan'; setStatus('Modus: Achsen verschieben'); });
+    $('modeOriginBtn').addEventListener('click', () => { state.mode = 'origin'; setStatus('Modus: Ursprung setzen'); });
+    $('modeTimeBtn').addEventListener('click', () => { state.mode = 'time'; setStatus('Modus: Zeit kalibrieren'); setActiveTab('time'); });
+    $('setT0CurrentFrameBtn').addEventListener('click', () => { state.t0Frame = state.currentFrame; draw(); setStatus('t=0 wurde auf den aktuellen Frame gesetzt.'); });
+    $('captureTimeABtn').addEventListener('click', () => { state.timeCal.aFrame = state.currentFrame; setStatus('Zeit-Kalibrierung: Frame A = ' + state.timeCal.aFrame); });
+    $('captureTimeBBtn').addEventListener('click', () => { state.timeCal.bFrame = state.currentFrame; setStatus('Zeit-Kalibrierung: Frame B = ' + state.timeCal.bFrame); });
+    $('applyTimeCalibrationBtn').addEventListener('click', () => {
+      const aF = state.timeCal.aFrame;
+      const bF = state.timeCal.bFrame;
+      const aT = parseFloat($('timeCalA').value);
+      const bT = parseFloat($('timeCalB').value);
+      if (aF == null || bF == null || aF === bF || !isFinite(aT) || !isFinite(bT) || aT === bT) {
+        setStatus('Zeit-Kalibrierung unvollständig oder ungültig.');
+        return;
+      }
+      state.fps = Math.abs((bF - aF) / (bT - aT));
+      state.t0Frame = Math.round(aF - aT * state.fps);
+      updateUiFromState();
+      draw();
+      setStatus('Neue Framerate aus Kalibrierung: ' + state.fps.toFixed(6) + ' fps');
+    });
+    $('restoreDetectedFpsBtn').addEventListener('click', () => {
+      state.fps = state.originalDetectedFps;
+      updateUiFromState();
+      draw();
+      setStatus('Zur ursprünglich erkannten Framerate zurückgekehrt.');
+    });
+
+    $('scaleDistanceSlider').addEventListener('input', () => { $('scaleDistanceInput').value = $('scaleDistanceSlider').value; });
+    $('scaleDistanceInput').addEventListener('input', () => { $('scaleDistanceSlider').value = $('scaleDistanceInput').value; });
+    ['scaleSliderMin', 'scaleSliderMax', 'scaleSliderStep'].forEach(id => {
+      $(id).addEventListener('change', () => {
+        $('scaleDistanceSlider').min = $('scaleSliderMin').value;
+        $('scaleDistanceSlider').max = $('scaleSliderMax').value;
+        $('scaleDistanceSlider').step = $('scaleSliderStep').value;
+      });
+    });
+    $('applyScaleBtn').addEventListener('click', () => {
+      if (state.scalePoints.length !== 2) {
+        setStatus('Bitte zuerst zwei Punkte für den Maßstab markieren.');
+        return;
+      }
+      const dpx = Math.hypot(state.scalePoints[1].x - state.scalePoints[0].x, state.scalePoints[1].y - state.scalePoints[0].y);
+      const dReal = parseFloat($('scaleDistanceInput').value);
+      if (!(dpx > 0) || !(dReal > 0)) {
+        setStatus('Ungültige Maßstabsdaten.');
+        return;
+      }
+      state.pxPerUnit = dpx / dReal;
+      state.unit = $('scaleUnitInput').value.trim() || 'm';
+      autoSetupRanges();
+      updateUiFromState();
+      draw();
+      setStatus('Maßstab gesetzt: ' + state.pxPerUnit.toFixed(3) + ' px/' + state.unit);
+    });
+    $('autoTicksBtn').addEventListener('click', autoTicks);
+    $('toggleTimestampBtn').addEventListener('click', () => { state.timestamp.enabled = !state.timestamp.enabled; draw(); });
+    $('resetTimestampPosBtn').addEventListener('click', () => {
+      state.timestamp.x = 30;
+      state.timestamp.y = 40;
+      updateUiFromState();
+      draw();
+    });
+    $('toggleTimestampBgBtn').addEventListener('click', () => {
+      state.timestamp.bgEnabled = !state.timestamp.bgEnabled;
+      draw();
+    });
+    $('setTimestampBgDefaultBtn').addEventListener('click', () => {
+      state.timestamp.bgEnabled = true;
+      state.timestamp.bgColor = '#ffffff';
+      state.timestamp.bgOpacity = 0.85;
+      state.timestamp.color = '#000000';
+      state.timestamp.opacity = 1;
+      updateUiFromState();
+      draw();
+    });
+
+    $('exportPngBtn').addEventListener('click', () => {
+      draw();
+      canvas.toBlob((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'frame_' + String(state.currentFrame).padStart(5, '0') + '.png';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png');
+    });
+
+    $('exportVideoBtn').addEventListener('click', async () => {
+      if (!state.loaded) return;
+      setStatus('Export läuft ...');
+      const off = document.createElement('canvas');
+      off.width = canvas.width;
+      off.height = canvas.height;
+      const octx = off.getContext('2d');
+      const stream = off.captureStream(state.fps);
+      let mime = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp8';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
+      const chunks = [];
+      rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+      const oldFrame = state.currentFrame;
+      const oldTime = video.currentTime;
+      const startF = Math.min(state.firstFrame, state.lastFrame ?? totalFrames());
+      const endF = Math.max(state.firstFrame, state.lastFrame ?? totalFrames());
+
+      rec.start(200);
+      for (let f = startF; f <= endF; f++) {
+        await gotoFrame(f);
+        octx.clearRect(0, 0, off.width, off.height);
+        octx.drawImage(video, 0, 0, off.width, off.height);
+        drawGridAndAxes();
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        octx.putImageData(img, 0, 0);
+        await new Promise(r => setTimeout(r, 1000 / state.fps));
+        setStatus('Export läuft ... ' + (f - startF + 1) + '/' + (endF - startF + 1));
+      }
+      rec.stop();
+      await new Promise(resolve => rec.onstop = resolve);
+      const blob = new Blob(chunks, { type: mime });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'video_overlay_frames_' + startF + '_bis_' + endF + '.webm';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      await seekVideo(oldTime);
+      state.currentFrame = oldFrame;
+      draw();
+      setStatus('Export abgeschlossen.');
+    });
+
+    $('setFirstFrameBtn').addEventListener('click', () => {
+      state.firstFrame = state.currentFrame;
+      if (state.lastFrame != null && state.firstFrame > state.lastFrame) {
+        state.lastFrame = state.firstFrame;
+      }
+      draw();
+      setStatus('Erster Frame festgelegt: ' + state.firstFrame);
+    });
+    $('setLastFrameBtn').addEventListener('click', () => {
+      state.lastFrame = state.currentFrame;
+      if (state.lastFrame < state.firstFrame) {
+        state.firstFrame = state.lastFrame;
+      }
+      draw();
+      setStatus('Letzter Frame festgelegt: ' + state.lastFrame);
+    });
+    $('setT0AsFirstFrameBtn').addEventListener('click', () => {
+      state.firstFrame = state.t0Frame;
+      if (state.lastFrame != null && state.firstFrame > state.lastFrame) {
+        state.lastFrame = state.firstFrame;
+      }
+      draw();
+      setStatus('Der Frame bei t=0 wurde als erster Frame festgelegt.');
+    });
+
+    setActiveTab('view');
+    updateUiFromState();
+    draw();
+  </script>
+</body>
+</html>
