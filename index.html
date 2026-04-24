@@ -1,0 +1,4065 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video-Overlay-App</title>
+  <style>
+    :root {
+      --bg: #e5e7eb;
+      --panel: #f3f4f6;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #0f172a;
+      --accent-2: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    .app {
+      display: grid;
+      grid-template-columns: minmax(320px, 400px) 1fr;
+      min-height: 100vh;
+      gap: 18px;
+      padding: 12px;
+    }
+    .sidebar {
+      padding: 18px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: auto;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+    }
+    .stage {
+      display: grid;
+      grid-template-rows: auto auto auto;
+      align-content: start;
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+    }
+    h1 { font-size: 1.05rem; margin: 0 0 14px 0; }
+    .dropzone {
+      padding: 20px 14px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: #f8fafc;
+      transition: 0.15s ease;
+      margin-bottom: 16px;
+    }
+    .dropzone.active {
+      border-color: var(--accent-2);
+      background: #eff6ff;
+      color: #1e3a8a;
+    }
+    .dropzone button { margin-top: 10px; }
+    .toolbar-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .tab-btn, .ghost-btn, .primary-btn {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab-btn.active, .primary-btn {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .accordion { display: grid; gap: 10px; }
+    .acc-item {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .acc-head {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background: #fff;
+      border: 0;
+      cursor: pointer;
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .acc-head span:last-child {
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .acc-body { display: none; padding: 0 14px 14px 14px; }
+    .acc-item.open .acc-body { display: block; }
+    .grid2, .grid3 { display: grid; gap: 10px; margin-bottom: 10px; }
+    .grid2 { grid-template-columns: 1fr 1fr; }
+    .grid3 { grid-template-columns: repeat(3, 1fr); }
+    label {
+      display: block;
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    input[type="number"], input[type="text"], select, button, input[type="color"] {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding: 9px 10px;
+      font-size: 0.92rem;
+    }
+    input[type="color"] { padding: 4px; height: 42px; }
+    input[type="range"] { width: 100%; }
+    .timeline-wrap {
+      position: relative;
+      margin-top: 2px;
+    }
+    .timeline-overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 8px;
+      transform: translateY(-50%);
+      pointer-events: none;
+      border-radius: 999px;
+    }
+    .timeline-range {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background: rgba(29, 78, 216, 0.22);
+      border-radius: 999px;
+    }
+    .timeline-marker {
+      position: absolute;
+      top: -4px;
+      width: 3px;
+      height: 16px;
+      background: #1d4ed8;
+      border-radius: 2px;
+    }
+    .toolbar {
+      padding: 14px 18px 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 12px;
+    }
+    .fit-header-equation {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.95);
+      border-radius: 12px;
+      color: #0f172a;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+      max-width: min(100%, 900px);
+      min-height: 48px;
+      line-height: 1.4;
+      overflow: visible;
+    }
+    .fit-header-type {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .fit-header-formula {
+      overflow: visible;
+      text-overflow: clip;
+      white-space: nowrap;
+      font-family: "Times New Roman", Times, serif;
+      font-style: italic;
+      line-height: 1.4;
+      padding-top: 1px;
+      padding-bottom: 2px;
+    }
+    .fit-header-formula .fit-roman { font-style: normal; }
+    .fit-header-formula sup {
+      font-size: 0.78em;
+      line-height: 0;
+      position: relative;
+      top: -0.4em;
+    }
+    .canvas-wrap {
+      position: relative;
+      display: grid;
+      place-items: start center;
+      padding: 6px 18px 8px 18px;
+    }
+    canvas {
+      max-width: calc(100vw - 470px);
+      max-height: calc(100vh - 220px);
+      background: #dbe4ef;
+      border-radius: 16px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+      touch-action: none;
+    }
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 12px 18px 16px 18px;
+      background: transparent;
+    }
+    .hint { font-size: 0.8rem; color: var(--muted); line-height: 1.35; }
+    .status {
+      font-size: 0.84rem;
+      color: var(--muted);
+      white-space: pre-line;
+      min-height: 20px;
+      margin-top: 6px;
+    }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { flex: 1; }
+    .tiny { font-size: 0.75rem; color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+    .fit-param-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .strobe-output-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .fit-param-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: #f8fafc;
+    }
+    .fit-param-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .fit-minmax-labels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
+      margin-bottom: 6px;
+      font-size: 0.75rem;
+      color: #334155;
+      font-weight: 700;
+    }
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      canvas { max-width: calc(100vw - 48px); }
+      .fit-param-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .fit-param-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>Videoanalyse mit Koordinaten-Overlay</h1>
+
+      <button id="backToVideoBtn" class="primary-btn" style="display:none; margin-bottom:14px;" type="button">← Zurück zum Videomodus</button>
+
+      <div id="diagramTypeTopBar" style="display:none; margin-bottom:14px;">
+        <div class="grid2" style="margin-bottom:10px;">
+          <div>
+            <label>Diagrammtyp</label>
+            <select id="diagramType">
+              <option value="xy">x-y</option>
+              <option value="tx">t-x</option>
+              <option value="ty">t-y</option>
+              <option value="tvx">t-v_x</option>
+              <option value="tvy">t-v_y</option>
+              <option value="tv">t-v</option>
+            </select>
+          </div>
+          <div style="display:flex; align-items:end;">
+            <button id="diagramExportBtn" class="ghost-btn" type="button">Diagramm exportieren</button>
+          </div>
+        </div>
+        <div class="grid2" style="margin-bottom:0;">
+          <div>
+            <label>Exportgröße</label>
+            <select id="diagramExportSizeCm">
+              <option value="8">8 × 8 cm</option>
+              <option value="10" selected>10 × 10 cm</option>
+              <option value="15">15 × 15 cm</option>
+            </select>
+          </div>
+          <div>
+            <label>Bildauflösung</label>
+            <select id="diagramExportDpi">
+              <option value="150">150 dpi</option>
+              <option value="300" selected>300 dpi</option>
+              <option value="600">600 dpi</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="dropzone" class="dropzone">
+        <div>Video hier hineinziehen oder per Explorer auswählen</div>
+        <button id="openFileBtn" class="primary-btn" style="max-width:280px;" type="button">Video öffnen</button>
+      </div>
+      <input id="fileInput" type="file" accept="video/*" style="display:none" />
+
+      <div class="toolbar-tabs">
+        <button class="tab-btn active" data-tab="axes" type="button">Achsen</button>
+        <button class="tab-btn" data-tab="time" type="button">Zeit</button>
+        <button class="tab-btn" data-tab="tracking" type="button">Objektverfolgung</button>
+        <button class="tab-btn" data-tab="diagrams" type="button">Diagramme</button>
+        <button class="tab-btn" data-tab="strobes" type="button">Stroboskop- und Streifenbilder</button>
+        <button class="tab-btn" data-tab="export" type="button">Export</button>
+      </div>
+
+      <div id="panelAxes" style="display:none">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Maßstab einstellen</span><span>Zwei Punkte anklicken</span></button>
+            <div class="acc-body">
+              <div class="hint" style="margin-bottom:10px;">Sobald dieses Menü geöffnet ist, erscheint im Bild eine Referenzstrecke mit zwei verschiebbaren Punkten. Wenn du den Streckenwert änderst oder die Punkte verschiebst, wird der Maßstab sofort automatisch angepasst.</div>
+              <div class="grid2">
+                <div><label>Strecke [Einheiten]</label><input id="scaleDistanceInput" type="number" min="0.0001" step="0.01" value="1" /></div>
+                <div><label>Einheit</label><input id="scaleUnitInput" type="text" value="m" /></div>
+              </div>
+            </div>
+          </div>
+          <div class="acc-item">
+            <button class="acc-head" type="button"><span>Achsen einstellen</span><span>Farben, Ticks, Bereich</span></button>
+            <div class="acc-body">
+              <div class="color-row">
+                <div><label>Achsenfarbe</label><input id="axisColor" type="color" value="#000000" /></div>
+                <div><label>Gridfarbe</label><input id="gridColor" type="color" value="#000000" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Achsenstärke</label><input id="axisWidth" type="number" min="0.5" step="0.5" value="3.5" /></div>
+                <div><label>Achsen-Deckkraft</label><input id="axisOpacity" type="number" min="0" max="1" step="0.05" value="0.9" /></div>
+                <div><label>Schriftgröße</label><input id="labelFontSize" type="number" min="8" step="1" value="14" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Grid-Stärke</label><input id="gridWidth" type="number" min="0.25" step="0.25" value="2" /></div>
+                <div><label>Grid-Deckkraft</label><input id="gridOpacity" type="number" min="0" max="1" step="0.05" value="0.9" /></div>
+                <div><label>Pfeilgröße</label><input id="arrowSize" type="number" min="6" step="1" value="12" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Tick-Abstand</label><input id="tickX" type="number" min="0.0001" step="0.1" value="1" /></div>
+                <div><label>Zahl an jedem n-ten Tick</label><input id="labelEvery" type="number" min="1" step="1" value="1" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Erste Zahl bei x=</label><input id="labelStartX" type="number" step="any" value="0" /></div>
+                <div><label>Erste Zahl bei y=</label><input id="labelStartY" type="number" step="any" value="0" /></div>
+                <div style="display:flex; align-items:end;">
+                  <label style="display:flex; align-items:center; gap:8px; margin:0;">
+                    <input id="showZeroLabel" type="checkbox" style="width:auto;" />
+                    <span>0 beschriften</span>
+                  </label>
+                </div>
+              </div>
+              <div class="grid2">
+                <div><label>x_min</label><input id="xMinInput" type="number" step="0.1" value="-5" /></div>
+                <div><label>x_max</label><input id="xMaxInput" type="number" step="0.1" value="5" /></div>
+                <div><label>y_min</label><input id="yMinInput" type="number" step="0.1" value="-3" /></div>
+                <div><label>y_max</label><input id="yMaxInput" type="number" step="0.1" value="3" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Achsenwinkel [°]</label><input id="axisAngleInput" type="number" step="1" value="0" /></div>
+                <div><label>Achsenmodus</label>
+                  <select id="axisDisplayMode">
+                    <option value="both" selected>beide Achsen</option>
+                    <option value="xOnly">nur x-Achse</option>
+                    <option value="yOnly">nur y-Achse</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid2">
+                <button id="flipXBtn" class="ghost-btn" type="button">x-Richtung umkehren</button>
+                <button id="flipYBtn" class="ghost-btn" type="button">y-Richtung umkehren</button>
+              </div>
+              <div class="grid2">
+                <button id="toggleLabelHandlesBtn" class="ghost-btn" type="button">Label-Griffe ein/aus</button>
+                <div></div>
+              </div>
+              <div class="hint">Am gebogenen Griff nahe dem Ursprung kann das Koordinatensystem gedreht werden.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelTime" style="display:none">
+        <div class="accordion">
+          <div class="acc-item">
+            <button class="acc-head" type="button"><span>Zeitstempel einstellen</span><span>Größe, Position, Hintergrund</span></button>
+            <div class="acc-body">
+              <div class="grid3">
+                <div><label>Größe</label><input id="timeFontSize" type="number" min="8" step="1" value="26" /></div>
+                <div><label>X-Position [px]</label><input id="timePosX" type="number" step="1" value="30" /></div>
+                <div><label>Y-Position [px]</label><input id="timePosY" type="number" step="1" value="40" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Textfarbe</label><input id="timeColor" type="color" value="#ffffff" /></div>
+                <div><label>Deckkraft</label><input id="timeOpacity" type="number" min="0" max="1" step="0.05" value="0.95" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Hintergrundfarbe</label><input id="timeBgColor" type="color" value="#ffffff" /></div>
+                <div><label>Hintergrund-Deckkraft</label><input id="timeBgOpacity" type="number" min="0" max="1" step="0.05" value="0.85" /></div>
+              </div>
+              <div class="grid2">
+                <button id="toggleTimestampBtn" class="ghost-btn" type="button">Zeitstempel ein/aus</button>
+                <button id="resetTimestampPosBtn" class="ghost-btn" type="button">Position zurücksetzen</button>
+              </div>
+              <div class="grid2">
+                <button id="toggleTimestampBgBtn" class="ghost-btn" type="button">Hintergrundfeld ein/aus</button>
+                <button id="setTimestampBgDefaultBtn" class="ghost-btn" type="button">weißes Feld / schwarze Schrift</button>
+              </div>
+            </div>
+          </div>
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Zeit kalibrieren</span><span>Navigation und Kalibrierung</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <div><label>Framerate [fps]</label><input id="fpsInput" type="number" min="0.1" step="0.001" value="30" /></div>
+                <div><label>Aktueller Frame</label><input id="currentFrameInput" type="number" min="0" step="1" value="0" /></div>
+              </div>
+              <div class="grid2">
+                <button id="setT0CurrentFrameBtn" class="primary-btn" type="button">t=0 im aktuellen Frame</button>
+                <button id="restoreDetectedFpsBtn" class="ghost-btn" type="button">Zur erkannten Framerate zurück</button>
+              </div>
+              <div class="hint" style="margin-bottom:10px;">Erkannte Framerate: <span id="detectedFpsText" class="mono">–</span></div>
+
+              <div class="grid2">
+                <div><label>Zeitpunkt A [s]</label><input id="timeCalA" type="number" step="0.001" value="0" /></div>
+                <div><label>Zeitpunkt B [s]</label><input id="timeCalB" type="number" step="0.001" value="1" /></div>
+              </div>
+              <div class="grid2">
+                <button id="captureTimeABtn" class="ghost-btn" type="button">Frame als A merken</button>
+                <button id="captureTimeBBtn" class="ghost-btn" type="button">Frame als B merken</button>
+              </div>
+              <div class="grid2">
+                <button id="applyTimeCalibrationBtn" class="primary-btn" type="button">Framerate aus A/B berechnen</button>
+                <button id="modeTimeBtn" class="ghost-btn" type="button">Zeit-Kalibrierungsmodus</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      
+      <div id="panelTracking" style="display:none">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Objektverfolgung</span><span>Punkte frameweise setzen</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <div><label>Markierung in jedem n-ten Frame</label><input id="trackStepInput" type="number" min="1" step="1" value="1" /></div>
+                <div><label>Kreisdurchmesser [px]</label><input id="trackMarkerSize" type="range" min="6" max="90" step="1" value="10" /></div>
+              </div>
+              <div class="grid2">
+                <button id="trackingClearBtn" class="ghost-btn" type="button">Markierungen löschen</button>
+                <button id="trackingUndoBtn" class="ghost-btn" type="button">Letzte Markierung entfernen</button>
+              </div>
+              <div class="hint">Der rote Kreispointer ist sofort sichtbar. Mit der Maus verschieben und loslassen: Im aktuellen Frame wird ein kleiner roter Punkt gestempelt und automatisch zu n+dn gewechselt.</div>
+              <div class="tiny" id="trackingInfo">Noch keine Markierungen.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div id="panelDiagrams" style="display:none">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Fitkurve</span><span>Einblendung und Stil</span></button>
+            <div class="acc-body">
+              <div class="grid3">
+                <div>
+                  <label>Fittyp</label>
+                  <select id="fitType">
+                    <option value="none">keine</option>
+                    <option value="linear">linear</option>
+                    <option value="quadratic">quadratisch</option>
+                    <option value="exponential">exponentiell</option>
+                    <option value="sin">sin</option>
+                    <option value="cos">cos</option>
+                    <option value="expSin">exp.+sin</option>
+                    <option value="expCos">exp.+cos</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Fit-Modus</label>
+                  <select id="fitMode">
+                    <option value="manual" selected>manuell</option>
+                    <option value="auto">auto</option>
+                  </select>
+                </div>
+                <div style="display:flex; align-items:end;">
+                  <label style="display:flex; align-items:center; gap:8px; margin:0;">
+                    <input id="fitVisible" type="checkbox" style="width:auto;" checked />
+                    <span>Sichtbar</span>
+                  </label>
+                </div>
+              </div>
+              <div class="grid3">
+                <div><label>Linienstärke</label><input id="fitWidth" type="number" min="0.5" step="0.5" value="2" /></div>
+                <div><label>Farbe</label><input id="fitColor" type="color" value="#0b3d91" /></div>
+                <div><label>Deckkraft</label><input id="fitOpacity" type="number" min="0" max="1" step="0.05" value="1" /></div>
+                <div><label>Legendenschriftgröße</label><input id="legendFontSize" type="number" min="10" step="1" value="16" /></div>
+              </div>
+              <div class="grid2">
+                <div>
+                  <label>Linienstil</label>
+                  <select id="fitStyle">
+                    <option value="solid">durchgezogen</option>
+                    <option value="dashed">gestrichelt</option>
+                    <option value="dotted">gepunktet</option>
+                  </select>
+                </div>
+                <div style="display:flex; align-items:end;">
+                  <button id="fitRefreshBtn" class="ghost-btn" type="button">Fit neu berechnen</button>
+                </div>
+              </div>
+              <div class="hint">Im manuellen Modus liegen die Parameterschieberegler unten unter dem Diagramm.</div>
+              <div class="tiny" id="fitInfo">Noch keine Fitkurve.</div>
+            </div>
+          </div>
+
+          <div class="acc-item">
+            <button class="acc-head" type="button"><span>Koordinatensystem und Grid</span><span>Bereich, Ticks, Darstellung</span></button>
+            <div class="acc-body">
+
+
+              <div class="color-row">
+                <div><label>Achsenfarbe</label><input id="diagramAxisColor" type="color" value="#000000" /></div>
+                <div><label>Gridfarbe</label><input id="diagramGridColor" type="color" value="#000000" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Achsenstärke</label><input id="diagramAxisWidth" type="number" min="0.5" step="0.5" value="2.5" /></div>
+                <div><label>Achsen-Deckkraft</label><input id="diagramAxisOpacity" type="number" min="0" max="1" step="0.05" value="0.9" /></div>
+                <div><label>Schriftgröße</label><input id="diagramLabelFontSize" type="number" min="8" step="1" value="14" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Grid-Stärke</label><input id="diagramGridWidth" type="number" min="0.25" step="0.25" value="1.5" /></div>
+                <div><label>Grid-Deckkraft</label><input id="diagramGridOpacity" type="number" min="0" max="1" step="0.05" value="0.4" /></div>
+                <div><label>Pfeilgröße</label><input id="diagramArrowSize" type="number" min="6" step="1" value="12" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Tick-Abstand x</label><input id="diagramTickX" type="number" min="0.0001" step="0.1" value="1" /></div>
+                <div><label>Tick-Abstand y</label><input id="diagramTickY" type="number" min="0.0001" step="0.1" value="1" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Zahl an jedem n-ten Tick (x)</label><input id="diagramLabelEveryX" type="number" min="1" step="1" value="1" /></div>
+                <div><label>Zahl an jedem n-ten Tick (y)</label><input id="diagramLabelEveryY" type="number" min="1" step="1" value="1" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Erste Zahl bei x=</label><input id="diagramLabelStartX" type="number" step="any" value="0" /></div>
+                <div><label>Erste Zahl bei y=</label><input id="diagramLabelStartY" type="number" step="any" value="0" /></div>
+              </div>
+              <div class="grid2">
+                <div style="display:flex; align-items:end;">
+                  <label style="display:flex; align-items:center; gap:8px; margin:0;">
+                    <input id="diagramShowZeroLabelX" type="checkbox" style="width:auto;" />
+                    <span>0 auf x-Achse beschriften</span>
+                  </label>
+                </div>
+                <div style="display:flex; align-items:end;">
+                  <label style="display:flex; align-items:center; gap:8px; margin:0;">
+                    <input id="diagramShowZeroLabelY" type="checkbox" style="width:auto;" />
+                    <span>0 auf y-Achse beschriften</span>
+                  </label>
+                </div>
+              </div>
+              <div class="grid2">
+                <div><label>x_min</label><input id="diagramXMinInput" type="number" step="any" value="-5" /></div>
+                <div><label>x_max</label><input id="diagramXMaxInput" type="number" step="any" value="5" /></div>
+                <div><label>y_min</label><input id="diagramYMinInput" type="number" step="any" value="-3" /></div>
+                <div><label>y_max</label><input id="diagramYMaxInput" type="number" step="any" value="3" /></div>
+              </div>
+              <div class="grid2">
+                <div><label>Achsenmodus</label>
+                  <select id="diagramAxisDisplayMode">
+                    <option value="both" selected>beide Achsen</option>
+                    <option value="xOnly">nur x-Achse</option>
+                    <option value="yOnly">nur y-Achse</option>
+                  </select>
+                </div>
+                <div></div>
+              </div>
+              <div class="grid2">
+                <button id="diagramToggleLabelHandlesBtn" class="ghost-btn" type="button">Label-Griffe ein/aus</button>
+                <div></div>
+              </div>
+              <div class="hint">Im Diagramm-Modus bleibt die Achsrotation deaktiviert. Die Tick-Abstände können automatisch auf glatte Werte gesetzt werden.</div>
+            </div>
+          </div>
+
+          <div class="acc-item">
+            <button class="acc-head" type="button"><span>Symbol einstellen</span><span>Datenpunkte</span></button>
+            <div class="acc-body">
+              <div class="grid3">
+                <div>
+                  <label>Symbol</label>
+                  <select id="symbolType">
+                    <option value="dot">Punkt</option>
+                    <option value="cross">Aufrechtes Kreuz</option>
+                    <option value="diagcross">Schräges Kreuz</option>
+                  </select>
+                </div>
+                <div><label>Größe [px]</label><input id="symbolSize" type="number" min="2" step="1" value="8" /></div>
+                <div><label>Farbe</label><input id="symbolColor" type="color" value="#000000" /></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div id="panelStrobes" style="display:none">
+        <div class="grid2" style="margin:0 0 12px 0;">
+          <button id="strobeExportImageBtn" class="ghost-btn" type="button">Bild exportieren</button>
+          <button id="strobeCopyImageBtn" class="ghost-btn" type="button">In die Zwischenablage kopieren</button>
+        </div>
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Stroboskopbild</span><span>Positionen stempeln</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <div><label>Jede n-te Position verwenden</label><input id="strobeStepInput" type="number" min="1" step="1" value="1" /></div>
+                <div><label>Kreisdurchmesser [px]</label><input id="strobeCircleSize" type="range" min="6" max="180" step="1" value="10" /></div>
+              </div>
+              <div class="grid2">
+                <label style="display:flex; align-items:center; gap:8px; margin:0;"><input id="strobeShowAxes" type="checkbox" style="width:auto;" checked /> Koordinatensystem anzeigen</label>
+                <label style="display:flex; align-items:center; gap:8px; margin:0;"><input id="strobeShowMarkers" type="checkbox" style="width:auto;" checked /> Objektmarkierungen anzeigen</label>
+              </div>
+              <button id="strobeRenderBtn" class="primary-btn" type="button">Stroboskopbild erzeugen</button>
+              <div class="hint" style="margin-top:10px;">Als Hintergrund dient der erste Frame mit Objektmarkierung. Der Zeitstempel wird nicht übernommen.</div>
+            </div>
+          </div>
+
+          <div class="acc-item">
+            <button class="acc-head" type="button"><span>Streifenbild</span><span>Zeilen oder Spalten aus markierten Frames</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <div>
+                  <label>Orientierung</label>
+                  <select id="stripOrientation">
+                    <option value="horizontal" selected>horizontal</option>
+                    <option value="vertical">vertikal</option>
+                  </select>
+                </div>
+                <div><label>Jede n-te Position verwenden</label><input id="stripStepInput" type="number" min="1" step="1" value="1" /></div>
+              </div>
+              <div class="grid3">
+                <div><label>Streifenhöhe/-breite [px]</label><input id="stripThickness" type="range" min="4" max="220" step="1" value="10" /></div>
+                <div><label>Abstand [px]</label><input id="stripGap" type="range" min="0" max="80" step="1" value="8" /></div>
+                <div><label>Zeitstempel-Schriftgröße</label><input id="stripTimestampFontSize" type="range" min="8" max="42" step="1" value="16" /></div>
+              </div>
+              <div class="grid2">
+                <label style="display:flex; align-items:center; gap:8px; margin:0;"><input id="stripShowAxes" type="checkbox" style="width:auto;" checked /> Koordinatensystem anzeigen</label>
+                <label style="display:flex; align-items:center; gap:8px; margin:0;"><input id="stripShowMarkers" type="checkbox" style="width:auto;" checked /> Objektmarkierungen anzeigen</label>
+              </div>
+              <button id="stripRenderBtn" class="primary-btn" type="button">Streifenbild erzeugen</button>
+              <div class="hint" style="margin-top:10px;">Die Zeitstempel lassen sich im Streifenbild mit der Maus gemeinsam entlang der Streifenrichtung verschieben. Export und Zwischenablage verwenden die oben stehenden Bild-Buttons und die echte Videoauflösung der Streifen.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelExport" style="display:none">
+        <div class="accordion">
+          <div class="acc-item open">
+            <button class="acc-head" type="button"><span>Export</span><span>Frame oder Video</span></button>
+            <div class="acc-body">
+              <div class="grid2">
+                <button id="exportPngBtn" class="ghost-btn" type="button">Aktuellen Frame als PNG</button>
+                <button id="exportVideoBtn" class="primary-btn" type="button">Video mit Overlay exportieren</button>
+              </div>
+              <div class="status" id="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stage">
+      <div class="toolbar">
+        <div id="fitHeaderEquation" class="fit-header-equation">
+          <span id="fitHeaderType" class="fit-header-type"></span>
+          <span id="fitHeaderFormula" class="fit-header-formula"></span>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="1280" height="720"></canvas>
+        <video id="video" style="display:none" playsinline muted crossorigin="anonymous"></video>
+      </div>
+
+      <div class="footer">
+        <div id="videoFooterControls">
+          <div class="row" style="margin-bottom:8px;">
+            <button id="prevFrameBtn" class="ghost-btn" type="button">◀ 1 Frame</button>
+            <button id="playPauseBtn" class="ghost-btn" type="button">▶ / ❚❚</button>
+            <button id="nextFrameBtn" class="ghost-btn" type="button">1 Frame ▶</button>
+          </div>
+          <div class="timeline-wrap">
+            <div class="timeline-overlay" id="timelineOverlay">
+              <div class="timeline-range" id="timelineRange"></div>
+              <div class="timeline-marker" id="timelineStartMarker"></div>
+              <div class="timeline-marker" id="timelineEndMarker"></div>
+            </div>
+            <input id="timeline" type="range" min="0" max="0" step="0.000001" value="0" />
+          </div>
+          <div class="grid3" style="margin-top:10px;">
+            <button id="setFirstFrameBtn" class="ghost-btn" type="button">als ersten Frame festlegen</button>
+            <button id="setLastFrameBtn" class="ghost-btn" type="button">als letzten Frame festlegen</button>
+            <button id="setT0AsFirstFrameBtn" class="ghost-btn" type="button">Erster Frame bei t=0</button>
+          </div>
+        </div>
+        <div id="diagramFooterControls" style="display:none; margin-top:6px;">
+          <div id="fitParamControls" style="display:none;">
+            <div class="fit-param-grid">
+              <div id="ctrlA" class="fit-param-card">
+                <div class="fit-param-head"><span id="fitParamALabel">a</span><span id="fitParamAVal">1.000</span></div>
+                <input id="fitParamA" type="range" min="-5" max="5" step="0.01" value="1" />
+                <div class="fit-minmax-labels"><span>Min</span><span>Max</span></div>
+                <div class="grid2"><input id="fitParamAMin" type="text" inputmode="decimal" value="-5" /><input id="fitParamAMax" type="text" inputmode="decimal" value="5" /></div>
+              </div>
+              <div id="ctrlB" class="fit-param-card">
+                <div class="fit-param-head"><span>b</span><span id="fitParamBVal">1.000</span></div>
+                <input id="fitParamB" type="range" min="-5" max="5" step="0.01" value="1" />
+                <div class="fit-minmax-labels"><span>Min</span><span>Max</span></div>
+                <div class="grid2"><input id="fitParamBMin" type="text" inputmode="decimal" value="-5" /><input id="fitParamBMax" type="text" inputmode="decimal" value="5" /></div>
+              </div>
+              <div id="ctrlC" class="fit-param-card">
+                <div class="fit-param-head"><span>c</span><span id="fitParamCVal">1.000</span></div>
+                <input id="fitParamC" type="range" min="-5" max="5" step="0.01" value="1" />
+                <div class="fit-minmax-labels"><span>Min</span><span>Max</span></div>
+                <div class="grid2"><input id="fitParamCMin" type="text" inputmode="decimal" value="-5" /><input id="fitParamCMax" type="text" inputmode="decimal" value="5" /></div>
+              </div>
+              <div id="ctrlW" class="fit-param-card">
+                <div class="fit-param-head"><span>w</span><span id="fitParamWVal">1.000</span></div>
+                <input id="fitParamW" type="range" min="-10" max="10" step="0.01" value="1" />
+                <div class="fit-minmax-labels"><span>Min</span><span>Max</span></div>
+                <div class="grid2"><input id="fitParamWMin" type="text" inputmode="decimal" value="-10" /><input id="fitParamWMax" type="text" inputmode="decimal" value="10" /></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tiny" id="metaText" style="margin-top:8px;">Kein Video geladen.</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const canvas = $('canvas');
+    const ctx = canvas.getContext('2d');
+    const video = $('video');
+    const statusEl = $('status');
+    const timeline = $('timeline');
+    const metaText = $('metaText');
+
+    const state = {
+      videoUrl: null, loaded: false, playing: false, mode: 'pan',
+      detectedFps: 30, originalDetectedFps: 30, fps: 30, sourceFps: 30, frameCount: 1,
+      t0Frame: 0, currentFrame: 0, firstFrame: 0, lastFrame: null, drag: null,
+      origin: { x: 180, y: 540 }, pxPerUnit: 80, unit: 'm',
+      xMin: -2, xMax: 10, yMin: -5, yMax: 2,
+      axisAngle: 0, axisDisplayMode: 'both', xDir: 1, yDir: 1,
+      xLabelOffsetN: 19, xLabelOffsetT: 10, yLabelOffsetN: 11, yLabelOffsetT: -12, showLabelHandles: false,
+      axis: { color: '#000000', width: 2.5, opacity: 0.9, fontSize: 14, arrowSize: 12 },
+      grid: { color: '#000000', width: 1.5, opacity: 0.4 },
+      ticks: { x: 1, y: 1, labelEvery: 1, labelEveryX: 1, labelEveryY: 1, labelStartX: 0, labelStartY: 0, showZero: false, showZeroX: false, showZeroY: false },
+      timestamp: { enabled: true, x: 30, y: 40, fontSize: 26, color: '#ffffff', opacity: 0.95, bgEnabled: false, bgColor: '#ffffff', bgOpacity: 0.85 },
+      scalePoints: [],
+      scaleVisible: false,
+      timeCal: { aFrame: null, bFrame: null, aTime: 0, bTime: 1, calibrated: false, anchorFrame: 0, anchorTime: 0 },
+      manualFrameTimeOverrides: new Map(),
+      handleRadius: 10,
+      magnifier: { enabled: false, pointIndex: null, x: 0, y: 0, radius: 90, zoom: 4 },
+      activeTab: 'axes',
+      tracking: { step: 1, markerSize: 10, pointerX: 0, pointerY: 0, hasPointer: false, points: [] },
+      strobe: { mode: 'strobe', outputCanvas: null, rendering: false, pendingStrip: false, pendingStrobe: false, rebuildTimer: null, timestampOffset: 12, lastError: '', renderToken: 0 },
+      diagram: {
+        type: 'xy',
+        symbolType: 'dot',
+        symbolSize: 8,
+        symbolColor: '#000000',
+        fitType: 'none',
+        fitMode: 'manual',
+        fitVisible: true,
+        fitWidth: 2,
+        fitColor: '#0b3d91',
+        fitOpacity: 1,
+        fitStyle: 'solid',
+        params: { a: 1, b: 1, c: 1, w: 1 },
+        paramRanges: { a: [-5,5], b: [-5,5], c: [-5,5], w: [-10,10] },
+        legendX: 40,
+        legendY: 40,
+        legendFontSize: 16,
+        axisTitleX: null,
+        axisTitleY: null,
+        exportMode: false,
+        autoFitLabel: ''
+      }
+    };
+
+    function setStatus(msg) { if (statusEl) statusEl.textContent = msg; }
+    function rgba(hex, alpha) {
+      const h = hex.replace('#', '');
+      const bigint = parseInt(h, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function round(v, d = 3) { return Number(v.toFixed(d)); }
+    function niceStep(raw) {
+      if (!isFinite(raw) || raw <= 0) return 1;
+      const exp = Math.floor(Math.log10(raw));
+      const base = raw / Math.pow(10, exp);
+      let nice;
+      if (base <= 1) nice = 1;
+      else if (base <= 2) nice = 2;
+      else if (base <= 5) nice = 5;
+      else nice = 10;
+      return nice * Math.pow(10, exp);
+    }
+
+
+function setDiagramCanvasSquare() {
+  if (state.diagram && state.diagram.exportMode) return;
+  const wrap = canvas.parentElement;
+  if (!wrap) return;
+  const wrapRect = wrap.getBoundingClientRect();
+  const footer = $('diagramFooterControls');
+  const footerH = footer ? footer.getBoundingClientRect().height : 0;
+  const toolbarH = 120;
+  const viewportLimit = Math.max(420, window.innerHeight - toolbarH - footerH - 120);
+  const size = Math.max(420, Math.floor(Math.min(wrapRect.width - 20, viewportLimit, 1200)));
+  if (canvas.width !== size || canvas.height !== size) {
+    canvas.width = size;
+    canvas.height = size;
+  }
+}
+
+function autoSetupDiagramRanges() {
+  const series = getDiagramSeries();
+  if (!series || !series.xs.length) return;
+  const xs = series.xs;
+  const ys = series.ys;
+
+  let xmin = Math.min(...xs);
+  let xmax = Math.max(...xs);
+  let ymin = Math.min(...ys);
+  let ymax = Math.max(...ys);
+
+  if (Math.abs(xmax - xmin) < 1e-12) {
+    xmin -= 1;
+    xmax += 1;
+  }
+  if (Math.abs(ymax - ymin) < 1e-12) {
+    ymin -= 1;
+    ymax += 1;
+  }
+
+  const xPad = Math.max((xmax - xmin) * 0.08, 1e-6);
+  const yPad = Math.max((ymax - ymin) * 0.08, 1e-6);
+  xmin -= xPad;
+  xmax += xPad;
+  ymin -= yPad;
+  ymax += yPad;
+
+  const xStep = niceStep((xmax - xmin) / 8);
+  const yStep = niceStep((ymax - ymin) / 8);
+
+  state.xMin = Math.floor(xmin / xStep) * xStep;
+  state.xMax = Math.ceil(xmax / xStep) * xStep;
+  state.yMin = Math.floor(ymin / yStep) * yStep;
+  state.yMax = Math.ceil(ymax / yStep) * yStep;
+
+  state.ticks.x = xStep;
+  state.ticks.y = yStep;
+  state.ticks.labelEvery = 1;
+  state.ticks.labelEveryX = 1;
+  state.ticks.labelEveryY = 1;
+  state.ticks.labelStartX = 0;
+  state.ticks.labelStartY = 0;
+  state.axisAngle = 0;
+  state.axisDisplayMode = 'both';
+  if (state.currentAxesProfile === 'diagram' || state.activeTab === 'diagrams') {
+    state.diagramAxesProfile = readAxesProfileFromState();
+  }
+}
+
+
+    function canvasScaleX() {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width) return 1;
+      return canvas.width / rect.width;
+    }
+
+    function canvasScaleY() {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.height) return 1;
+      return canvas.height / rect.height;
+    }
+
+    function screenPxToCanvasPx(px) {
+      return px * 0.5 * (canvasScaleX() + canvasScaleY());
+    }
+
+    
+    function cloneAxesProfile(src) {
+      return JSON.parse(JSON.stringify(src));
+    }
+
+    function readAxesProfileFromState() {
+      return {
+        xMin: state.xMin, xMax: state.xMax, yMin: state.yMin, yMax: state.yMax,
+        axisAngle: state.axisAngle, axisDisplayMode: state.axisDisplayMode,
+        xDir: state.xDir, yDir: state.yDir,
+        xLabelOffsetN: state.xLabelOffsetN, xLabelOffsetT: state.xLabelOffsetT,
+        yLabelOffsetN: state.yLabelOffsetN, yLabelOffsetT: state.yLabelOffsetT,
+        showLabelHandles: state.showLabelHandles,
+        origin: { x: state.origin.x, y: state.origin.y },
+        pxPerUnit: state.pxPerUnit,
+        axis: cloneAxesProfile(state.axis),
+        grid: cloneAxesProfile(state.grid),
+        ticks: cloneAxesProfile(state.ticks)
+      };
+    }
+
+    function applyAxesProfileToState(profile) {
+      if (!profile) return;
+      state.xMin = profile.xMin;
+      state.xMax = profile.xMax;
+      state.yMin = profile.yMin;
+      state.yMax = profile.yMax;
+      state.axisAngle = profile.axisAngle ?? 0;
+      state.axisDisplayMode = profile.axisDisplayMode || 'both';
+      state.xDir = profile.xDir ?? 1;
+      state.yDir = profile.yDir ?? 1;
+      state.xLabelOffsetN = profile.xLabelOffsetN ?? 19;
+      state.xLabelOffsetT = profile.xLabelOffsetT ?? 10;
+      state.yLabelOffsetN = profile.yLabelOffsetN ?? 11;
+      state.yLabelOffsetT = profile.yLabelOffsetT ?? -12;
+      state.showLabelHandles = !!profile.showLabelHandles;
+      if (profile.origin) state.origin = { x: profile.origin.x, y: profile.origin.y };
+      if (Number.isFinite(profile.pxPerUnit)) state.pxPerUnit = profile.pxPerUnit;
+      if (profile.axis) state.axis = cloneAxesProfile(profile.axis);
+      if (profile.grid) state.grid = cloneAxesProfile(profile.grid);
+      if (profile.ticks) state.ticks = cloneAxesProfile(profile.ticks);
+    }
+
+    function defaultDiagramAxesProfile() {
+      return {
+        xMin: -5, xMax: 5, yMin: -3, yMax: 3,
+        axisAngle: 0, axisDisplayMode: 'both',
+        xDir: 1, yDir: 1,
+        xLabelOffsetN: 19, xLabelOffsetT: 10,
+        yLabelOffsetN: 11, yLabelOffsetT: -12,
+        showLabelHandles: false,
+        origin: { x: state.origin.x, y: state.origin.y },
+        pxPerUnit: state.pxPerUnit,
+        axis: { color: '#000000', width: 2.5, opacity: 0.9, fontSize: 14, arrowSize: 12 },
+        grid: { color: '#000000', width: 1.5, opacity: 0.4 },
+        ticks: { x: 1, y: 1, labelEvery: 1, labelEveryX: 1, labelEveryY: 1, labelStartX: 0, labelStartY: 0, showZero: false, showZeroX: false, showZeroY: false }
+      };
+    }
+
+    state.videoAxesProfile = readAxesProfileFromState();
+    state.diagramAxesProfile = defaultDiagramAxesProfile();
+    state.currentAxesProfile = 'video';
+    state.diagramAxesInitialized = false;
+
+    function saveActiveAxesProfile() {
+      if (state.currentAxesProfile === 'diagram' || state.activeTab === 'diagrams') {
+        state.diagramAxesProfile = readAxesProfileFromState();
+      } else {
+        state.videoAxesProfile = readAxesProfileFromState();
+      }
+    }
+
+    function loadAxesProfile(kind) {
+      if (kind === 'diagram') {
+        applyAxesProfileToState(state.diagramAxesProfile);
+        state.currentAxesProfile = 'diagram';
+      } else {
+        applyAxesProfileToState(state.videoAxesProfile);
+        state.currentAxesProfile = 'video';
+      }
+    }
+
+function setActiveTab(tab) {
+  const previousTab = state.activeTab;
+  const enteringDiagram = previousTab !== 'diagrams' && tab === 'diagrams';
+  const leavingDiagram = previousTab === 'diagrams' && tab !== 'diagrams';
+  const enteringStrobes = previousTab !== 'strobes' && tab === 'strobes';
+  const leavingStrobes = previousTab === 'strobes' && tab !== 'strobes';
+
+  // Vor jedem Moduswechsel wird das aktuell aktive Koordinatensystem-Profil
+  // dauerhaft gesichert. Video- und Diagramm-KO-System bleiben dadurch strikt getrennt.
+  saveActiveAxesProfile();
+
+  state.activeTab = tab;
+
+  if (enteringDiagram) {
+    loadAxesProfile('diagram');
+    if (!state.diagramAxesInitialized) {
+      autoSetupDiagramRanges();
+      state.diagramAxesInitialized = true;
+      state.diagramAxesProfile = readAxesProfileFromState();
+    }
+  } else if (leavingDiagram) {
+    restoreVideoCanvasAfterDiagram();
+  } else if (leavingStrobes) {
+    restoreVideoCanvasAfterDiagram();
+  } else if (tab !== 'diagrams' && tab !== 'strobes') {
+    loadAxesProfile('video');
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+
+  const isDiagram = tab === 'diagrams';
+  const isStrobes = tab === 'strobes';
+  const isSpecialCanvasMode = isDiagram || isStrobes;
+  $('panelAxes').style.display = tab === 'axes' ? 'block' : 'none';
+  $('panelTime').style.display = tab === 'time' ? 'block' : 'none';
+  $('panelTracking').style.display = tab === 'tracking' ? 'block' : 'none';
+  $('panelDiagrams').style.display = isDiagram ? 'block' : 'none';
+  if ($('panelStrobes')) $('panelStrobes').style.display = isStrobes ? 'block' : 'none';
+  $('panelExport').style.display = tab === 'export' ? 'block' : 'none';
+
+  if ($('dropzone')) $('dropzone').style.display = isSpecialCanvasMode ? 'none' : 'block';
+  if (document.querySelector('.toolbar-tabs')) document.querySelector('.toolbar-tabs').style.display = isSpecialCanvasMode ? 'none' : 'flex';
+  if ($('backToVideoBtn')) $('backToVideoBtn').style.display = isSpecialCanvasMode ? 'block' : 'none';
+  if ($('diagramTypeTopBar')) $('diagramTypeTopBar').style.display = isDiagram ? 'block' : 'none';
+
+  if ($('videoFooterControls')) $('videoFooterControls').style.display = isSpecialCanvasMode ? 'none' : 'block';
+  if ($('diagramFooterControls')) $('diagramFooterControls').style.display = isDiagram ? 'block' : 'none';
+
+  if (tab === 'axes') {
+    const scaleItem = $('panelAxes').querySelector('.acc-item');
+    state.scaleVisible = !!(scaleItem && scaleItem.classList.contains('open'));
+    if (state.scaleVisible) {
+      ensureDefaultScalePoints();
+    }
+  } else {
+    state.scaleVisible = false;
+  }
+
+  if (tab === 'tracking') {
+    if (state.tracking.points.length) {
+      const last = state.tracking.points[state.tracking.points.length - 1];
+      state.tracking.pointerX = last.sx;
+      state.tracking.pointerY = last.sy;
+    } else {
+      const p0 = worldToScreen(0, 0);
+      state.tracking.pointerX = p0.x;
+      state.tracking.pointerY = p0.y;
+    }
+    state.tracking.hasPointer = true;
+  }
+
+  if (enteringStrobes) {
+    syncStrobeControlDefaults();
+    restoreVideoCanvasAfterDiagram();
+    if (!state.strobe.outputCanvas && state.tracking.points.length) buildStroboscopeImage();
+  }
+
+  updateUiFromState();
+  updateNavigationUi();
+  draw();
+}
+
+
+    function ensureDefaultScalePoints(forceCenter = false) {
+      const margin = screenPxToCanvasPx(56);
+      const hasUsablePoints = state.scalePoints.length === 2 && state.scalePoints.every(p =>
+        Number.isFinite(p.x) && Number.isFinite(p.y) &&
+        p.x >= margin && p.x <= canvas.width - margin &&
+        p.y >= margin && p.y <= canvas.height - margin
+      );
+      if (!forceCenter && hasUsablePoints) return;
+
+      // Maßstabslinie gut greifbar in der Mitte des Video-Canvas platzieren.
+      const cx = canvas.width * 0.5;
+      const cy = canvas.height * 0.5;
+      const half = Math.max(screenPxToCanvasPx(80), Math.min(canvas.width, canvas.height) * 0.12);
+      state.scalePoints = [
+        { x: clamp(cx - half, margin, canvas.width - margin), y: cy },
+        { x: clamp(cx + half, margin, canvas.width - margin), y: cy }
+      ];
+    }
+
+    function getPanelAccordionItemByTitle(panelId, titleText) {
+      const panel = $(panelId);
+      if (!panel) return null;
+      return Array.from(panel.querySelectorAll('.acc-item')).find(item => {
+        const head = item.querySelector('.acc-head');
+        return head && head.textContent.includes(titleText);
+      }) || null;
+    }
+
+    function isVideoScalePanelOpen() {
+      const item = getPanelAccordionItemByTitle('panelAxes', 'Maßstab einstellen');
+      return !!(item && item.classList.contains('open'));
+    }
+
+    function isVideoAxisPanelOpen() {
+      const item = getPanelAccordionItemByTitle('panelAxes', 'Achsen einstellen');
+      return !!(item && item.classList.contains('open'));
+    }
+
+    function interactiveHandleRadius() {
+      return screenPxToCanvasPx(10);
+    }
+
+    function interactiveHitRadius() {
+      return screenPxToCanvasPx(18);
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+    });
+    if ($('backToVideoBtn')) $('backToVideoBtn').addEventListener('click', () => {
+      setActiveTab('axes');
+    });
+    document.querySelectorAll('.acc-head').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.acc-item');
+        if (!item) return;
+
+        const panelAxes = $('panelAxes');
+        const accItems = panelAxes ? [...panelAxes.querySelectorAll('.acc-item')] : [];
+        const isScaleHead = btn.textContent.includes('Maßstab einstellen');
+        const isAxesHead = btn.textContent.includes('Achsen einstellen');
+        const willOpen = !item.classList.contains('open');
+
+        item.classList.toggle('open');
+
+        if (willOpen && (isScaleHead || isAxesHead)) {
+          accItems.forEach(other => {
+            if (other !== item) other.classList.remove('open');
+          });
+        }
+
+        if (isScaleHead) {
+          state.scaleVisible = item.classList.contains('open');
+          if (state.scaleVisible) {
+            ensureDefaultScalePoints();
+          }
+          state.drag = null;
+          state.magnifier.enabled = false;
+          state.magnifier.pointIndex = null;
+          draw();
+          return;
+        }
+
+        if (isAxesHead) {
+          const scaleItem = panelAxes ? [...panelAxes.querySelectorAll('.acc-item')].find(el => {
+            const head = el.querySelector('.acc-head');
+            return head && head.textContent.includes('Maßstab einstellen');
+          }) : null;
+          if (scaleItem) scaleItem.classList.remove('open');
+          state.scaleVisible = false;
+          state.drag = null;
+          state.magnifier.enabled = false;
+          state.magnifier.pointIndex = null;
+          draw();
+        }
+      });
+    });
+
+
+    function effectiveFrameStep() {
+      return state.activeTab === 'tracking' ? Math.max(1, Math.round(state.tracking.step || 1)) : 1;
+    }
+
+    function updateNavigationUi() {
+      const dn = effectiveFrameStep();
+      $('prevFrameBtn').textContent = '◀ ' + dn + ' Frame';
+      $('nextFrameBtn').textContent = dn + ' Frame ▶';
+      if (state.activeTab === 'tracking' && state.loaded) {
+        timeline.step = 1 / Math.max(state.sourceFps, 1);
+      } else {
+        timeline.step = 0.000001;
+      }
+      if ($('trackingInfo')) {
+        const hasCurrent = state.tracking.points.some(p => p.frame === state.currentFrame);
+        $('trackingInfo').textContent = state.tracking.points.length
+          ? state.tracking.points.length + ' Markierungen gespeichert.' + (hasCurrent ? ' Aktueller Frame hat einen Punkt.' : '')
+          : 'Noch keine Markierungen.';
+      }
+    }
+
+    function getTrackedData() {
+      const pts = [...state.tracking.points].sort((a,b)=>a.frame-b.frame);
+      const data = pts.map(p => ({...p}));
+      const n = data.length;
+      for (let i=0;i<n;i++) {
+        let vx=0, vy=0;
+        if (n >= 2) {
+          if (i === 0) {
+            const dt = data[1].t - data[0].t || 1e-9;
+            vx = (data[1].x - data[0].x) / dt;
+            vy = (data[1].y - data[0].y) / dt;
+          } else if (i === n-1) {
+            const dt = data[i].t - data[i-1].t || 1e-9;
+            vx = (data[i].x - data[i-1].x) / dt;
+            vy = (data[i].y - data[i-1].y) / dt;
+          } else {
+            const dt = data[i+1].t - data[i-1].t || 1e-9;
+            vx = (data[i+1].x - data[i-1].x) / dt;
+            vy = (data[i+1].y - data[i-1].y) / dt;
+          }
+        }
+        data[i].vx = vx;
+        data[i].vy = vy;
+        data[i].v = Math.hypot(vx, vy);
+      }
+      return data;
+    }
+
+    function rgbaFromHex(hex, opacity) {
+      return rgba(hex, opacity);
+    }
+
+    function parseRangeInput(txt, fallback) {
+      try {
+        const parts = String(txt).split(',');
+        if (parts.length !== 2) return fallback;
+        const a = parseFloat(parts[0].trim()), b = parseFloat(parts[1].trim());
+        if (!isFinite(a) || !isFinite(b) || a === b) return fallback;
+        return [Math.min(a,b), Math.max(a,b)];
+      } catch { return fallback; }
+    }
+
+    function manualFitFunction() {
+      const p = state.diagram.params;
+      switch (state.diagram.fitType) {
+        case 'linear': return x => p.a * x + p.b;
+        case 'quadratic': return x => p.a * x * x + p.b * x + p.c;
+        case 'exponential': return x => p.a * Math.exp(p.b * x) + p.c;
+        case 'sin': return x => p.a * Math.sin(p.w * x);
+        case 'cos': return x => p.a * Math.cos(p.w * x);
+        case 'expSin': return x => p.a * Math.exp(-p.b * x) * Math.sin(p.w * x);
+        case 'expCos': return x => p.a * Math.exp(-p.b * x) * Math.cos(p.w * x);
+        default: return null;
+      }
+    }
+
+    function roundLegendValue(value, digits = 3) {
+      if (!Number.isFinite(value)) return 0;
+      return Number(value.toFixed(digits));
+    }
+
+    function formatLegendNumber(value, digits = 3) {
+      const rounded = roundLegendValue(value, digits);
+      return String(rounded).replace('-', '−');
+    }
+
+    function fitFormalHtml(fitType) {
+      const eq = {
+        linear: 'y = m · x + b',
+        quadratic: 'y = a · x<sup>2</sup> + b · x + c',
+        exponential: 'y = a · e<sup>b·x</sup> + c',
+        sin: 'y = a · <span class="fit-roman">sin</span>(w·x)',
+        cos: 'y = a · <span class="fit-roman">cos</span>(w·x)',
+        expSin: 'y = a · e<sup>−b·x</sup> · <span class="fit-roman">sin</span>(w·x)',
+        expCos: 'y = a · e<sup>−b·x</sup> · <span class="fit-roman">cos</span>(w·x)'
+      };
+      return eq[fitType] || '';
+    }
+
+    function buildFitLegendOps() {
+      const p = (state.diagram.fitMode === 'auto' && state.diagram.autoFitParams) ? state.diagram.autoFitParams : state.diagram.params;
+      const n = (v) => formatLegendNumber(v, 3);
+      const sign = (v) => (v >= 0 ? ' + ' : ' − ');
+      switch (state.diagram.fitType) {
+        case 'linear':
+          return [{ kind: 'base', text: `y = ${n(p.a)}x${sign(p.b)}${n(Math.abs(p.b))}` }];
+        case 'quadratic':
+          return [
+            { kind: 'base', text: `y = ${n(p.a)}` },
+            { kind: 'base', text: 'x' },
+            { kind: 'super', text: '2' },
+            { kind: 'base', text: `${sign(p.b)}${n(Math.abs(p.b))}x${sign(p.c)}${n(Math.abs(p.c))}` }
+          ];
+        case 'exponential':
+          return [
+            { kind: 'base', text: `y = ${n(p.a)}e` },
+            { kind: 'super', text: `${n(p.b)}x` },
+            { kind: 'base', text: `${sign(p.c)}${n(Math.abs(p.c))}` }
+          ];
+        case 'sin':
+          return [
+            { kind: 'base', text: `y = ${n(p.a)} ` },
+            { kind: 'roman', text: 'sin' },
+            { kind: 'base', text: `(${n(p.w)}x)` }
+          ];
+        case 'cos':
+          return [
+            { kind: 'base', text: `y = ${n(p.a)} ` },
+            { kind: 'roman', text: 'cos' },
+            { kind: 'base', text: `(${n(p.w)}x)` }
+          ];
+        case 'expSin':
+          return [
+            { kind: 'base', text: `y = ${n(p.a)} e` },
+            { kind: 'super', text: `−${n(p.b)}x` },
+            { kind: 'base', text: ' ' },
+            { kind: 'roman', text: 'sin' },
+            { kind: 'base', text: `(${n(p.w)}x)` }
+          ];
+        case 'expCos':
+          return [
+            { kind: 'base', text: `y = ${n(p.a)} e` },
+            { kind: 'super', text: `−${n(p.b)}x` },
+            { kind: 'base', text: ' ' },
+            { kind: 'roman', text: 'cos' },
+            { kind: 'base', text: `(${n(p.w)}x)` }
+          ];
+        default:
+          return [];
+      }
+    }
+
+    function currentFitLabel() {
+      return buildFitLegendOps().map(op => op.text).join('');
+    }
+
+    function measureLegendOps(fs) {
+      const ops = buildFitLegendOps();
+      ctx.save();
+      let width = 0;
+      for (const op of ops) {
+        if (op.kind === 'super') ctx.font = `${fs * 0.78}px "Times New Roman", Times, serif`;
+        else if (op.kind === 'roman') ctx.font = `${fs}px "Times New Roman", Times, serif`;
+        else ctx.font = `italic ${fs}px "Times New Roman", Times, serif`;
+        width += ctx.measureText(op.text).width;
+      }
+      ctx.restore();
+      return { ops, width };
+    }
+
+    function drawLegendBox(labelText) {
+      if (!labelText) return;
+      ctx.save();
+      const fs = screenPxToCanvasPx(state.diagram.legendFontSize || 16);
+      const padX = screenPxToCanvasPx(12);
+      const padY = screenPxToCanvasPx(10);
+      const x = state.diagram.legendX;
+      const y = state.diagram.legendY;
+      const r = screenPxToCanvasPx(10);
+      const measured = measureLegendOps(fs);
+      const bw = measured.width + 2 * padX;
+      const bh = fs + 2 * padY + screenPxToCanvasPx(10);
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.strokeStyle = state.diagram.fitColor || 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = screenPxToCanvasPx(1.5);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + bw - r, y);
+      ctx.quadraticCurveTo(x + bw, y, x + bw, y + r);
+      ctx.lineTo(x + bw, y + bh - r);
+      ctx.quadraticCurveTo(x + bw, y + bh, x + bw - r, y + bh);
+      ctx.lineTo(x + r, y + bh);
+      ctx.quadraticCurveTo(x, y + bh, x, y + bh - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#0f172a';
+      let cursorX = x + padX;
+      const baseY = y + padY + fs;
+      const superY = baseY - fs * 0.55;
+      for (const op of measured.ops) {
+        if (op.kind === 'super') ctx.font = `${fs * 0.78}px "Times New Roman", Times, serif`;
+        else if (op.kind === 'roman') ctx.font = `${fs}px "Times New Roman", Times, serif`;
+        else ctx.font = `italic ${fs}px "Times New Roman", Times, serif`;
+        const drawY = op.kind === 'super' ? superY : baseY;
+        ctx.fillText(op.text, cursorX, drawY);
+        cursorX += ctx.measureText(op.text).width;
+      }
+      ctx.restore();
+    }
+
+    function legendRect() {
+      const fs = screenPxToCanvasPx(state.diagram.legendFontSize || 16);
+      const measured = measureLegendOps(fs);
+      return {
+        x: state.diagram.legendX,
+        y: state.diagram.legendY,
+        w: measured.width + 2 * screenPxToCanvasPx(12),
+        h: fs + 2 * screenPxToCanvasPx(10) + screenPxToCanvasPx(10)
+      };
+    }
+
+    function fitTypeLabel(fitType) {
+      const names = {
+        linear: 'linear Fit',
+        quadratic: 'Quadratischer Fit',
+        exponential: 'Exponentieller Fit',
+        sin: 'Sinus-Fit',
+        cos: 'Cosinus-Fit',
+        expSin: 'Exp.+Sin-Fit',
+        expCos: 'Exp.+Cos-Fit'
+      };
+      return names[fitType] || 'Fit';
+    }
+
+    function fitTypeFormalEquation(fitType) {
+      const eq = {
+        linear: 'y = m · x + b',
+        quadratic: 'y = a · x² + b · x + c',
+        exponential: 'y = a · e^(b·x) + c',
+        sin: 'y = a · sin(w·x)',
+        cos: 'y = a · cos(w·x)',
+        expSin: 'y = a · e^(-b·x) · sin(w·x)',
+        expCos: 'y = a · e^(-b·x) · cos(w·x)'
+      };
+      return eq[fitType] || '';
+    }
+
+    function updateFitHeaderEquation() {
+      const wrapper = $('fitHeaderEquation');
+      const typeEl = $('fitHeaderType');
+      const formulaEl = $('fitHeaderFormula');
+      if (!wrapper || !typeEl || !formulaEl) return;
+      const show = state.activeTab === 'diagrams' && state.diagram.fitVisible && state.diagram.fitType !== 'none';
+      wrapper.style.display = show ? 'inline-flex' : 'none';
+      if (!show) return;
+      typeEl.textContent = fitTypeLabel(state.diagram.fitType);
+      formulaEl.innerHTML = fitFormalHtml(state.diagram.fitType);
+    }
+
+    function solveLinearSystem(mat, vec) {
+      const n = vec.length;
+      const a = mat.map(row => row.slice());
+      const b = vec.slice();
+      for (let i=0;i<n;i++) {
+        let maxRow = i;
+        for (let r=i+1;r<n;r++) if (Math.abs(a[r][i]) > Math.abs(a[maxRow][i])) maxRow = r;
+        [a[i], a[maxRow]] = [a[maxRow], a[i]];
+        [b[i], b[maxRow]] = [b[maxRow], b[i]];
+        const piv = a[i][i] || 1e-12;
+        for (let j=i;j<n;j++) a[i][j] /= piv;
+        b[i] /= piv;
+        for (let r=0;r<n;r++) {
+          if (r===i) continue;
+          const f = a[r][i];
+          for (let j=i;j<n;j++) a[r][j] -= f*a[i][j];
+          b[r] -= f*b[i];
+        }
+      }
+      return b;
+    }
+
+    function fitLinear(xs, ys) {
+      const n = xs.length;
+      if (n < 2) return null;
+      let sx=0, sy=0, sxx=0, sxy=0;
+      for (let i=0;i<n;i++) { sx += xs[i]; sy += ys[i]; sxx += xs[i]*xs[i]; sxy += xs[i]*ys[i]; }
+      const denom = n*sxx - sx*sx;
+      if (Math.abs(denom) < 1e-12) return null;
+      const m = (n*sxy - sx*sy)/denom;
+      const b = (sy - m*sx)/n;
+      return { fn: x => m*x + b, label: `y = ${m.toFixed(3)} x + ${b.toFixed(3)}`, params: { a: m, b: b } };
+    }
+
+    
+    function fitQuadratic(xs, ys) {
+      const n = xs.length;
+      if (n < 3) return null;
+      let s1=n,sx=0,sx2=0,sx3=0,sx4=0,sy=0,sxy=0,sx2y=0;
+      for (let i=0;i<n;i++) {
+        const x=xs[i], y=ys[i], x2=x*x;
+        sx += x; sx2 += x2; sx3 += x2*x; sx4 += x2*x2;
+        sy += y; sxy += x*y; sx2y += x2*y;
+      }
+      const coeff = solveLinearSystem([[sx4,sx3,sx2],[sx3,sx2,sx],[sx2,sx,s1]],[sx2y,sxy,sy]);
+      const [a,b,c] = coeff;
+      return { fn: x => a*x*x + b*x + c, label: `y = ${a.toFixed(3)} x² + ${b.toFixed(3)} x + ${c.toFixed(3)}`, params: { a, b, c } };
+    }
+
+    
+    function fitExponential(xs, ys) {
+      if (xs.length < 2) return null;
+      const c = Math.min(...ys) - 1e-6;
+      const lx=[], ly=[];
+      for (let i=0;i<xs.length;i++) {
+        const val = ys[i]-c;
+        if (val <= 0) continue;
+        lx.push(xs[i]); ly.push(Math.log(val));
+      }
+      if (lx.length < 2) return null;
+      const lin = fitLinear(lx, ly);
+      if (!lin || !lin.params) return null;
+      const m = lin.params.a;
+      const a = Math.exp(lin.params.b);
+      return { fn: x => a*Math.exp(m*x)+c, label: `y = ${a.toFixed(3)} e^(${m.toFixed(3)}x) + ${c.toFixed(3)}`, params: { a, b: m, c } };
+    }
+
+    
+    function fitOscillation(xs, ys, mode) {
+      if (xs.length < 2) return null;
+      const xmin = Math.min(...xs), xmax = Math.max(...xs);
+      const span = Math.max(1e-6, xmax-xmin);
+      const amp = Math.max(1e-6, (Math.max(...ys)-Math.min(...ys))/2);
+      const w = 2*Math.PI/span;
+      if (mode === 'sin') return { fn: x => amp*Math.sin(w*(x-xmin)), label: `y = ${amp.toFixed(3)} sin(${w.toFixed(3)}x)`, params: { a: amp, w } };
+      if (mode === 'cos') return { fn: x => amp*Math.cos(w*(x-xmin)), label: `y = ${amp.toFixed(3)} cos(${w.toFixed(3)}x)`, params: { a: amp, w } };
+      const b = 1/span;
+      if (mode === 'expSin') return { fn: x => amp*Math.exp(-b*(x-xmin))*Math.sin(w*(x-xmin)), label: `y = ${amp.toFixed(3)} e^(-${b.toFixed(3)}x) sin(${w.toFixed(3)}x)`, params: { a: amp, b, w } };
+      if (mode === 'expCos') return { fn: x => amp*Math.exp(-b*(x-xmin))*Math.cos(w*(x-xmin)), label: `y = ${amp.toFixed(3)} e^(-${b.toFixed(3)}x) cos(${w.toFixed(3)}x)`, params: { a: amp, b, w } };
+      return null;
+    }
+
+    
+    function getDiagramSeries() {
+      const data = getTrackedData();
+      if (!data.length) return null;
+      const t = data.map(p=>p.t), x = data.map(p=>p.x), y = data.map(p=>p.y), vx = data.map(p=>p.vx), vy = data.map(p=>p.vy), v = data.map(p=>p.v);
+      switch (state.diagram.type) {
+        case 'xy': return { xs:x, ys:y, xLabel:'x / '+state.unit, yLabel:'y / '+state.unit };
+        case 'tx': return { xs:t, ys:x, xLabel:'t / s', yLabel:'x / '+state.unit };
+        case 'ty': return { xs:t, ys:y, xLabel:'t / s', yLabel:'y / '+state.unit };
+        case 'tvx': return { xs:t, ys:vx, xLabel:'t / s', yLabel:'v_x / '+state.unit+'/s' };
+        case 'tvy': return { xs:t, ys:vy, xLabel:'t / s', yLabel:'v_y / '+state.unit+'/s' };
+        case 'tv': return { xs:t, ys:v, xLabel:'t / s', yLabel:'v / '+state.unit+'/s' };
+      }
+      return null;
+    }
+
+    function computeFitFunction(series) {
+      if (state.diagram.fitMode === 'manual') return manualFitFunction();
+      const xs = series.xs, ys = series.ys;
+      switch (state.diagram.fitType) {
+        case 'linear': return fitLinear(xs, ys);
+        case 'quadratic': return fitQuadratic(xs, ys);
+        case 'exponential': return fitExponential(xs, ys);
+        case 'sin': return fitOscillation(xs, ys, 'sin');
+        case 'cos': return fitOscillation(xs, ys, 'cos');
+        case 'expSin': return fitOscillation(xs, ys, 'expSin');
+        case 'expCos': return fitOscillation(xs, ys, 'expCos');
+        default: return null;
+      }
+    }
+
+    function drawSymbol(x, y) {
+      ctx.save();
+      ctx.strokeStyle = state.diagram.symbolColor;
+      ctx.fillStyle = state.diagram.symbolColor;
+      const s = screenPxToCanvasPx(state.diagram.symbolSize);
+      ctx.lineWidth = 2;
+      if (state.diagram.symbolType === 'dot') {
+        ctx.beginPath(); ctx.arc(x, y, s*0.35, 0, Math.PI*2); ctx.fill();
+      } else if (state.diagram.symbolType === 'cross') {
+        ctx.beginPath();
+        ctx.moveTo(x-s/2, y); ctx.lineTo(x+s/2, y);
+        ctx.moveTo(x, y-s/2); ctx.lineTo(x, y+s/2);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x-s/2, y-s/2); ctx.lineTo(x+s/2, y+s/2);
+        ctx.moveTo(x-s/2, y+s/2); ctx.lineTo(x+s/2, y-s/2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    
+function ensureDiagramAxisTitlePositions(series, geom) {
+  const arrowPad = screenPxToCanvasPx((state.axis?.arrowSize || 12) + 10);
+  const xAxisY = (geom.ymin <= 0 && geom.ymax >= 0) ? geom.sy(0) : geom.plotBottom;
+  const yAxisX = (geom.xmin <= 0 && geom.xmax >= 0) ? geom.sx(0) : geom.plotLeft;
+  const xTitleW = ctx.measureText(series?.xLabel || "").width || screenPxToCanvasPx(40);
+  const xMargin = screenPxToCanvasPx(8);
+  const defaultX = {
+    x: Math.min(geom.plotRight - arrowPad - xMargin, canvas.width - xTitleW / 2 - xMargin),
+    y: Math.max(xMargin, Math.min(xAxisY - screenPxToCanvasPx(18), canvas.height - screenPxToCanvasPx(28)))
+  };
+  const defaultY = { x: yAxisX + screenPxToCanvasPx(16), y: geom.plotTop + arrowPad + screenPxToCanvasPx(4) };
+  const offCanvas = (pt) => !pt || !isFinite(pt.x) || !isFinite(pt.y) || pt.x < -40 || pt.x > canvas.width + 40 || pt.y < -40 || pt.y > canvas.height + 40;
+  const xTitleInvisible = (pt) => offCanvas(pt) || (pt.x + xTitleW / 2 < 0) || (pt.x - xTitleW / 2 > canvas.width) || pt.y < 0 || pt.y > canvas.height - screenPxToCanvasPx(8);
+
+  // Beim Export werden manuell gesetzte Achsentitelpositionen im Export-Handler
+  // proportional auf die neue Canvasgroesse umgerechnet. Deshalb hier nicht auf
+  // Defaultpositionen zuruecksetzen.
+
+  if (xTitleInvisible(state.diagram.axisTitleX)) {
+    state.diagram.axisTitleX = defaultX;
+  }
+  if (offCanvas(state.diagram.axisTitleY)) {
+    state.diagram.axisTitleY = defaultY;
+  }
+}
+
+function axisTitleHandles() {
+  const g = state.diagramGeometry;
+  if (!g) return null;
+  const series = getDiagramSeries();
+  if (!series || !series.xs.length) return null;
+  ensureDiagramAxisTitlePositions(series, g);
+  return {
+    xTitle: { x: state.diagram.axisTitleX.x, y: state.diagram.axisTitleX.y, cursor: 'move' },
+    yTitle: { x: state.diagram.axisTitleY.x, y: state.diagram.axisTitleY.y, cursor: 'move' }
+  };
+}
+
+function drawDiagram() {
+  setDiagramCanvasSquare();
+  updateFitHeaderEquation();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const series = getDiagramSeries();
+  if (!series || !series.xs.length) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '28px Inter, sans-serif';
+    ctx.fillText('Noch keine Verfolgungsdaten vorhanden', 40, 60);
+    updateMeta();
+    return;
+  }
+
+  const padOuter = Math.round(canvas.width * 0.055);
+  const topExtra = Math.round(canvas.width * 0.04);
+  const bottomExtra = Math.round(canvas.width * 0.09);
+  const leftExtra = Math.round(canvas.width * 0.06);
+  const rightExtra = Math.round(canvas.width * 0.03);
+
+  const plotLeft = padOuter + leftExtra;
+  const plotTop = padOuter + topExtra;
+  const plotRight = canvas.width - padOuter - rightExtra;
+  const plotBottom = canvas.height - padOuter - bottomExtra;
+  const plotW = plotRight - plotLeft;
+  const plotH = plotBottom - plotTop;
+
+  const xmin = state.xMin;
+  const xmax = state.xMax;
+  const ymin = state.yMin;
+  const ymax = state.yMax;
+  if (!(xmax > xmin) || !(ymax > ymin)) {
+    updateMeta();
+    return;
+  }
+
+  const sx = (x) => plotLeft + (x - xmin) / (xmax - xmin) * plotW;
+  const sy = (y) => plotBottom - (y - ymin) / (ymax - ymin) * plotH;
+  state.diagramGeometry = { plotLeft, plotTop, plotRight, plotBottom, plotW, plotH, xmin, xmax, ymin, ymax, sx, sy };
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(plotLeft, plotTop, plotW, plotH);
+  ctx.strokeStyle = 'rgba(15,23,42,0.18)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(plotLeft, plotTop, plotW, plotH);
+  ctx.restore();
+
+  const axisColor = rgba(state.axis.color, state.axis.opacity);
+  const gridColor = rgba(state.grid.color, state.grid.opacity);
+  const axisW = screenPxToCanvasPx(state.axis.width);
+  const arrowSize = screenPxToCanvasPx(state.axis.arrowSize);
+  const tickLen = screenPxToCanvasPx(8);
+  const fsize = screenPxToCanvasPx(state.axis.fontSize);
+  const showX = state.axisDisplayMode !== 'yOnly';
+  const showY = state.axisDisplayMode !== 'xOnly';
+
+  ctx.save();
+  ctx.font = fsize + 'px Inter, Arial, sans-serif';
+  ctx.textBaseline = 'top';
+
+  if (showX && showY) {
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = screenPxToCanvasPx(state.grid.width);
+
+    for (let x = Math.ceil(xmin / state.ticks.x) * state.ticks.x; x <= xmax + 1e-12; x += state.ticks.x) {
+      const px = sx(x);
+      ctx.beginPath();
+      ctx.moveTo(px, plotTop);
+      ctx.lineTo(px, plotBottom);
+      ctx.stroke();
+    }
+    for (let y = Math.ceil(ymin / state.ticks.y) * state.ticks.y; y <= ymax + 1e-12; y += state.ticks.y) {
+      const py = sy(y);
+      ctx.beginPath();
+      ctx.moveTo(plotLeft, py);
+      ctx.lineTo(plotRight, py);
+      ctx.stroke();
+    }
+  }
+
+  ctx.strokeStyle = axisColor;
+  ctx.fillStyle = axisColor;
+  ctx.lineWidth = axisW;
+
+  if (showX && ymin <= 0 && ymax >= 0) {
+    const y0 = sy(0);
+    drawArrow(plotLeft, y0, plotRight, y0, axisColor, axisW, arrowSize);
+    for (let x = Math.ceil(xmin / state.ticks.x) * state.ticks.x; x <= xmax + 1e-12; x += state.ticks.x) {
+      if (Math.abs(x - xmax) < 1e-9) continue;
+      const px = sx(x);
+      ctx.beginPath();
+      ctx.moveTo(px, y0 - tickLen);
+      ctx.lineTo(px, y0 + tickLen);
+      ctx.stroke();
+      const dx = x - state.ticks.labelStartX;
+      const k = dx / state.ticks.x;
+      const isZeroX = Math.abs(x) <= 1e-12;
+      const shouldLabelX = Math.abs(k - Math.round(k)) < 1e-6 && (Math.round(k) % (state.ticks.labelEveryX ?? state.ticks.labelEvery) === 0);
+      if (shouldLabelX && (((state.ticks.showZeroX ?? state.ticks.showZero)) || !isZeroX)) {
+        const txt = formatTick(x);
+        const w = ctx.measureText(txt).width;
+        ctx.fillText(txt, px + state.xLabelOffsetT - w / 2, y0 + state.xLabelOffsetN);
+      }
+    }
+  }
+
+  if (showY && xmin <= 0 && xmax >= 0) {
+    const x0 = sx(0);
+    drawArrow(x0, plotBottom, x0, plotTop, axisColor, axisW, arrowSize);
+    for (let y = Math.ceil(ymin / state.ticks.y) * state.ticks.y; y <= ymax + 1e-12; y += state.ticks.y) {
+      if (Math.abs(y - ymax) < 1e-9) continue;
+      const py = sy(y);
+      ctx.beginPath();
+      ctx.moveTo(x0 - tickLen, py);
+      ctx.lineTo(x0 + tickLen, py);
+      ctx.stroke();
+      const dy = y - state.ticks.labelStartY;
+      const k = dy / state.ticks.y;
+      const isZeroY = Math.abs(y) <= 1e-12;
+      const shouldLabelY = Math.abs(k - Math.round(k)) < 1e-6 && (Math.round(k) % (state.ticks.labelEveryY ?? state.ticks.labelEvery) === 0);
+      if (shouldLabelY && (((state.ticks.showZeroY ?? state.ticks.showZero)) || !isZeroY)) {
+        const txt = formatTick(y);
+        ctx.fillText(txt, x0 + state.yLabelOffsetN, py - state.yLabelOffsetT - fsize * 0.5);
+      }
+    }
+  }
+
+  // fallback axes at border if zero is outside
+  if (showX && !(ymin <= 0 && ymax >= 0)) {
+    const yAxis = plotBottom;
+    drawArrow(plotLeft, yAxis, plotRight, yAxis, axisColor, axisW, arrowSize);
+    for (let x = Math.ceil(xmin / state.ticks.x) * state.ticks.x; x <= xmax + 1e-12; x += state.ticks.x) {
+      if (Math.abs(x - xmax) < 1e-9) continue;
+      const px = sx(x);
+      ctx.beginPath();
+      ctx.moveTo(px, yAxis - tickLen);
+      ctx.lineTo(px, yAxis + tickLen);
+      ctx.stroke();
+      const dx = x - state.ticks.labelStartX;
+      const k = dx / state.ticks.x;
+      const isZeroX = Math.abs(x) <= 1e-12;
+      const shouldLabelX = Math.abs(k - Math.round(k)) < 1e-6 && (Math.round(k) % (state.ticks.labelEveryX ?? state.ticks.labelEvery) === 0);
+      if (shouldLabelX && (((state.ticks.showZeroX ?? state.ticks.showZero)) || !isZeroX)) {
+        const txt = formatTick(x);
+        const w = ctx.measureText(txt).width;
+        ctx.fillText(txt, px + state.xLabelOffsetT - w / 2, yAxis + state.xLabelOffsetN);
+      }
+    }
+  }
+  if (showY && !(xmin <= 0 && xmax >= 0)) {
+    const xAxis = plotLeft;
+    drawArrow(xAxis, plotBottom, xAxis, plotTop, axisColor, axisW, arrowSize);
+    for (let y = Math.ceil(ymin / state.ticks.y) * state.ticks.y; y <= ymax + 1e-12; y += state.ticks.y) {
+      if (Math.abs(y - ymax) < 1e-9) continue;
+      const py = sy(y);
+      ctx.beginPath();
+      ctx.moveTo(xAxis - tickLen, py);
+      ctx.lineTo(xAxis + tickLen, py);
+      ctx.stroke();
+      const dy = y - state.ticks.labelStartY;
+      const k = dy / state.ticks.y;
+      const isZeroY = Math.abs(y) <= 1e-12;
+      const shouldLabelY = Math.abs(k - Math.round(k)) < 1e-6 && (Math.round(k) % (state.ticks.labelEveryY ?? state.ticks.labelEvery) === 0);
+      if (shouldLabelY && (((state.ticks.showZeroY ?? state.ticks.showZero)) || !isZeroY)) {
+        const txt = formatTick(y);
+        ctx.fillText(txt, xAxis + state.yLabelOffsetN, py - state.yLabelOffsetT - fsize * 0.5);
+      }
+    }
+  }
+
+  const lhs = labelHandles();
+  if (state.showLabelHandles) {
+    if (showX) drawHandle(lhs.xLabel.x, lhs.xLabel.y, '#bfdbfe');
+    if (showY) drawHandle(lhs.yLabel.x, lhs.yLabel.y, '#bfdbfe');
+  }
+
+  // points
+  for (let i = 0; i < series.xs.length; i++) {
+    drawSymbol(sx(series.xs[i]), sy(series.ys[i]));
+  }
+
+  // fit
+  let fitLabel = '';
+  if (state.diagram.fitVisible && state.diagram.fitType !== 'none') {
+    const fitObj = computeFitFunction(series);
+    const fitFn = fitObj ? (fitObj.fn || fitObj) : null;
+    if (fitFn) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(plotLeft, plotTop, plotW, plotH);
+      ctx.clip();
+      ctx.strokeStyle = rgbaFromHex(state.diagram.fitColor, state.diagram.fitOpacity);
+      ctx.lineWidth = screenPxToCanvasPx(state.diagram.fitWidth);
+      if (state.diagram.fitStyle === 'dashed') ctx.setLineDash([10, 6]);
+      if (state.diagram.fitStyle === 'dotted') ctx.setLineDash([2, 6]);
+      ctx.beginPath();
+      const n = 320;
+      let started = false;
+      for (let i = 0; i < n; i++) {
+        const x = xmin + i * (xmax - xmin) / (n - 1);
+        const y = fitFn(x);
+        if (!isFinite(y)) {
+          started = false;
+          continue;
+        }
+        const px = sx(x);
+        const py = sy(y);
+        if (!started) {
+          ctx.moveTo(px, py);
+          started = true;
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+      if (state.diagram.fitMode === 'auto') {
+        state.diagram.autoFitLabel = fitObj && fitObj.label ? fitObj.label : ('Auto-Fit: ' + state.diagram.fitType);
+        state.diagram.autoFitParams = fitObj && fitObj.params ? { ...fitObj.params } : null;
+      } else {
+        state.diagram.autoFitParams = null;
+      }
+      fitLabel = currentFitLabel();
+      $('fitInfo').textContent = 'Fit dargestellt: ' + state.diagram.fitType + ' (' + state.diagram.fitMode + ')';
+    } else {
+      $('fitInfo').textContent = 'Fit konnte mit den aktuellen Daten nicht berechnet werden.';
+    }
+  } else {
+    $('fitInfo').textContent = state.diagram.fitType === 'none' ? 'Keine Fitkurve ausgewählt.' : 'Fit ausgeblendet.';
+  }
+
+  // axis labels
+  ctx.fillStyle = '#000000';
+  ctx.font = fsize + 'px Inter, Arial, sans-serif';
+  ctx.textBaseline = 'top';
+  ensureDiagramAxisTitlePositions(series, state.diagramGeometry);
+  const xLabelPos = state.diagram.axisTitleX;
+  const yLabelPos = state.diagram.axisTitleY;
+  const xLabW = ctx.measureText(series.xLabel).width;
+  ctx.fillText(series.xLabel, xLabelPos.x - xLabW / 2, xLabelPos.y);
+  ctx.save();
+  ctx.translate(yLabelPos.x, yLabelPos.y);
+  ctx.rotate(-Math.PI / 2);
+  const yLabW = ctx.measureText(series.yLabel).width;
+  ctx.fillText(series.yLabel, -yLabW / 2, 0);
+  ctx.restore();
+  if (state.showLabelHandles) {
+    const titleHandles = axisTitleHandles();
+    if (titleHandles) {
+      drawHandle(titleHandles.xTitle.x, titleHandles.xTitle.y, '#fde68a');
+      drawHandle(titleHandles.yTitle.x, titleHandles.yTitle.y, '#fde68a');
+    }
+  }
+  ctx.restore();
+
+  drawLegendBox(fitLabel);
+  updateMeta();
+}
+
+
+    function renderTrackingOverlay() {
+      ctx.save();
+      const stamped = state.tracking.points.find(p => p.frame === state.currentFrame);
+      if (stamped) {
+        const r = screenPxToCanvasPx(8)/2;
+        ctx.fillStyle = '#ff0000';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(stamped.sx, stamped.sy, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      }
+      if (state.activeTab === 'tracking' && state.tracking.hasPointer) {
+        const r = screenPxToCanvasPx(state.tracking.markerSize)/2;
+        ctx.strokeStyle = '#d00000';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(state.tracking.pointerX, state.tracking.pointerY, r, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(state.tracking.pointerX-r, state.tracking.pointerY); ctx.lineTo(state.tracking.pointerX+r, state.tracking.pointerY);
+        ctx.moveTo(state.tracking.pointerX, state.tracking.pointerY-r); ctx.lineTo(state.tracking.pointerX, state.tracking.pointerY+r);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function updateUiFromState() {
+      const activeEl = document.activeElement;
+      const isEditingNumberLike = activeEl && activeEl.tagName === 'INPUT' && ['number', 'text'].includes((activeEl.type || '').toLowerCase());
+      const activeId = isEditingNumberLike ? activeEl.id : '';
+      const setInputValue = (el, value) => {
+        if (!el) return;
+        if (activeId && el.id === activeId) return;
+        el.value = value;
+      };
+      setInputValue($('fpsInput'), state.fps);
+            $('currentFrameInput').value = state.currentFrame;
+      $('detectedFpsText').textContent = state.detectedFps ? state.detectedFps.toFixed(3) : 'nicht erkannt';
+      const axisColorEl = state.activeTab === 'diagrams' && $('diagramAxisColor') ? $('diagramAxisColor') : $('axisColor');
+      const gridColorEl = state.activeTab === 'diagrams' && $('diagramGridColor') ? $('diagramGridColor') : $('gridColor');
+      const axisWidthEl = state.activeTab === 'diagrams' && $('diagramAxisWidth') ? $('diagramAxisWidth') : $('axisWidth');
+      const axisOpacityEl = state.activeTab === 'diagrams' && $('diagramAxisOpacity') ? $('diagramAxisOpacity') : $('axisOpacity');
+      const labelFontSizeEl = state.activeTab === 'diagrams' && $('diagramLabelFontSize') ? $('diagramLabelFontSize') : $('labelFontSize');
+      const gridWidthEl = state.activeTab === 'diagrams' && $('diagramGridWidth') ? $('diagramGridWidth') : $('gridWidth');
+      const gridOpacityEl = state.activeTab === 'diagrams' && $('diagramGridOpacity') ? $('diagramGridOpacity') : $('gridOpacity');
+      const arrowSizeEl = state.activeTab === 'diagrams' && $('diagramArrowSize') ? $('diagramArrowSize') : $('arrowSize');
+      const tickXEl = state.activeTab === 'diagrams' && $('diagramTickX') ? $('diagramTickX') : $('tickX');
+      const tickYEl = state.activeTab === 'diagrams' && $('diagramTickY') ? $('diagramTickY') : ($('tickY') || $('tickX'));
+      const labelEveryEl = state.activeTab === 'diagrams' && $('diagramLabelEvery') ? $('diagramLabelEvery') : $('labelEvery');
+      const labelEveryXEl = state.activeTab === 'diagrams' ? $('diagramLabelEveryX') : null;
+      const labelEveryYEl = state.activeTab === 'diagrams' ? $('diagramLabelEveryY') : null;
+      const labelStartXEl = state.activeTab === 'diagrams' && $('diagramLabelStartX') ? $('diagramLabelStartX') : $('labelStartX');
+      const labelStartYEl = state.activeTab === 'diagrams' && $('diagramLabelStartY') ? $('diagramLabelStartY') : $('labelStartY');
+      const showZeroEl = state.activeTab === 'diagrams' && $('diagramShowZeroLabel') ? $('diagramShowZeroLabel') : $('showZeroLabel');
+      const showZeroXEl = $('diagramShowZeroLabelX');
+      const showZeroYEl = $('diagramShowZeroLabelY');
+      const xMinEl = state.activeTab === 'diagrams' && $('diagramXMinInput') ? $('diagramXMinInput') : $('xMinInput');
+      const xMaxEl = state.activeTab === 'diagrams' && $('diagramXMaxInput') ? $('diagramXMaxInput') : $('xMaxInput');
+      const yMinEl = state.activeTab === 'diagrams' && $('diagramYMinInput') ? $('diagramYMinInput') : $('yMinInput');
+      const yMaxEl = state.activeTab === 'diagrams' && $('diagramYMaxInput') ? $('diagramYMaxInput') : $('yMaxInput');
+      const axisDisplayModeEl = state.activeTab === 'diagrams' && $('diagramAxisDisplayMode') ? $('diagramAxisDisplayMode') : $('axisDisplayMode');
+      setInputValue(axisColorEl, state.axis.color);
+      setInputValue(gridColorEl, state.grid.color);
+      setInputValue(axisWidthEl, state.axis.width);
+      setInputValue(axisOpacityEl, state.axis.opacity);
+      setInputValue(labelFontSizeEl, state.axis.fontSize);
+      setInputValue(gridWidthEl, state.grid.width);
+      setInputValue(gridOpacityEl, state.grid.opacity);
+      setInputValue(arrowSizeEl, state.axis.arrowSize);
+      setInputValue(tickXEl, state.activeTab === 'diagrams' ? state.ticks.x : state.ticks.x);
+      if (tickYEl && tickYEl !== tickXEl) setInputValue(tickYEl, state.ticks.y);
+      setInputValue(labelEveryEl, state.ticks.labelEvery);
+      setInputValue(labelEveryXEl, state.ticks.labelEveryX ?? state.ticks.labelEvery);
+      setInputValue(labelEveryYEl, state.ticks.labelEveryY ?? state.ticks.labelEvery);
+      setInputValue(labelStartXEl, state.ticks.labelStartX);
+      setInputValue(labelStartYEl, state.ticks.labelStartY);
+      if (showZeroEl) showZeroEl.checked = !!state.ticks.showZero;
+      if (showZeroXEl) showZeroXEl.checked = !!state.ticks.showZeroX;
+      if (showZeroYEl) showZeroYEl.checked = !!state.ticks.showZeroY;
+      setInputValue(xMinEl, state.xMin);
+      setInputValue(xMaxEl, state.xMax);
+      setInputValue(yMinEl, state.yMin);
+      setInputValue(yMaxEl, state.yMax);
+      setInputValue($('axisAngleInput'), state.axisAngle);
+      if (axisDisplayModeEl) axisDisplayModeEl.value = state.axisDisplayMode;
+      $('scaleUnitInput').value = state.unit;
+      $('timeFontSize').value = state.timestamp.fontSize;
+      $('timePosX').value = state.timestamp.x;
+      $('timePosY').value = state.timestamp.y;
+      $('timeColor').value = state.timestamp.color;
+      $('timeOpacity').value = state.timestamp.opacity;
+      $('timeBgColor').value = state.timestamp.bgColor;
+      $('timeBgOpacity').value = state.timestamp.bgOpacity;
+      if ($('trackStepInput')) $('trackStepInput').value = state.tracking.step;
+      if ($('trackMarkerSize')) $('trackMarkerSize').value = state.tracking.markerSize;
+      if ($('diagramType')) $('diagramType').value = state.diagram.type;
+      if ($('symbolType')) $('symbolType').value = state.diagram.symbolType;
+      if ($('symbolSize')) $('symbolSize').value = state.diagram.symbolSize;
+      if ($('symbolColor')) $('symbolColor').value = state.diagram.symbolColor;
+      if ($('fitType')) $('fitType').value = state.diagram.fitType;
+      if ($('fitMode')) $('fitMode').value = state.diagram.fitMode;
+      if ($('fitMode')) $('fitMode').value = state.diagram.fitMode;
+      if ($('fitVisible')) $('fitVisible').checked = !!state.diagram.fitVisible;
+      if ($('fitWidth')) $('fitWidth').value = state.diagram.fitWidth;
+      if ($('fitColor')) $('fitColor').value = state.diagram.fitColor;
+      if ($('fitOpacity')) $('fitOpacity').value = state.diagram.fitOpacity;
+      if ($('fitStyle')) $('fitStyle').value = state.diagram.fitStyle;
+      if ($('legendFontSize')) $('legendFontSize').value = state.diagram.legendFontSize;
+      if ($('fitParamA')) $('fitParamA').value = state.diagram.params.a;
+      if ($('fitParamALabel')) $('fitParamALabel').textContent = state.diagram.fitType === 'linear' ? 'm' : 'a';
+      if ($('fitParamAVal')) $('fitParamAVal').textContent = Number(state.diagram.params.a).toFixed(3);
+      if ($('fitParamBVal')) $('fitParamBVal').textContent = Number(state.diagram.params.b).toFixed(3);
+      if ($('fitParamCVal')) $('fitParamCVal').textContent = Number(state.diagram.params.c).toFixed(3);
+      if ($('fitParamWVal')) $('fitParamWVal').textContent = Number(state.diagram.params.w).toFixed(3);
+      if ($('fitParamB')) $('fitParamB').value = state.diagram.params.b;
+      if ($('fitParamC')) $('fitParamC').value = state.diagram.params.c;
+      if ($('fitParamW')) $('fitParamW').value = state.diagram.params.w;
+      setInputValue($('fitParamAMin'), state.diagram.paramRanges.a[0]);
+      setInputValue($('fitParamAMax'), state.diagram.paramRanges.a[1]);
+      setInputValue($('fitParamBMin'), state.diagram.paramRanges.b[0]);
+      setInputValue($('fitParamBMax'), state.diagram.paramRanges.b[1]);
+      setInputValue($('fitParamCMin'), state.diagram.paramRanges.c[0]);
+      setInputValue($('fitParamCMax'), state.diagram.paramRanges.c[1]);
+      setInputValue($('fitParamWMin'), state.diagram.paramRanges.w[0]);
+      setInputValue($('fitParamWMax'), state.diagram.paramRanges.w[1]);
+      if ($('fitParamControls')) $('fitParamControls').style.display = (state.activeTab === 'diagrams' && state.diagram.fitMode === 'manual' && state.diagram.fitType !== 'none') ? 'block' : 'none';
+      if ($('ctrlA')) $('ctrlA').style.display = ['linear','quadratic','exponential','sin','cos','expSin','expCos'].includes(state.diagram.fitType) ? 'block' : 'none';
+      if ($('ctrlB')) $('ctrlB').style.display = ['linear','quadratic','exponential','expSin','expCos'].includes(state.diagram.fitType) ? 'block' : 'none';
+      if ($('ctrlC')) $('ctrlC').style.display = ['quadratic','exponential'].includes(state.diagram.fitType) ? 'block' : 'none';
+      if ($('ctrlW')) $('ctrlW').style.display = ['sin','cos','expSin','expCos'].includes(state.diagram.fitType) ? 'block' : 'none';
+      updateNavigationUi();
+    }
+
+    function syncStateFromUi() {
+      const parseNum = (el, fallback, opts = {}) => {
+        if (!el) return fallback;
+        const raw = String(el.value ?? '').trim().replace(',', '.');
+        if (raw === '') return fallback;
+        const num = Number(raw);
+        if (!Number.isFinite(num)) return fallback;
+        let out = num;
+        if (Number.isFinite(opts.min)) out = Math.max(opts.min, out);
+        if (Number.isFinite(opts.max)) out = Math.min(opts.max, out);
+        return out;
+      };
+      const oldFps = state.fps;
+      const oldTimeCal = JSON.stringify(state.timeCal);
+      state.fps = parseNum($('fpsInput'), state.fps || 30, { min: 0.001 });
+      const axisColorEl = state.activeTab === 'diagrams' && $('diagramAxisColor') ? $('diagramAxisColor') : $('axisColor');
+      const gridColorEl = state.activeTab === 'diagrams' && $('diagramGridColor') ? $('diagramGridColor') : $('gridColor');
+      const axisWidthEl = state.activeTab === 'diagrams' && $('diagramAxisWidth') ? $('diagramAxisWidth') : $('axisWidth');
+      const axisOpacityEl = state.activeTab === 'diagrams' && $('diagramAxisOpacity') ? $('diagramAxisOpacity') : $('axisOpacity');
+      const labelFontSizeEl = state.activeTab === 'diagrams' && $('diagramLabelFontSize') ? $('diagramLabelFontSize') : $('labelFontSize');
+      const gridWidthEl = state.activeTab === 'diagrams' && $('diagramGridWidth') ? $('diagramGridWidth') : $('gridWidth');
+      const gridOpacityEl = state.activeTab === 'diagrams' && $('diagramGridOpacity') ? $('diagramGridOpacity') : $('gridOpacity');
+      const arrowSizeEl = state.activeTab === 'diagrams' && $('diagramArrowSize') ? $('diagramArrowSize') : $('arrowSize');
+      const tickXEl = state.activeTab === 'diagrams' && $('diagramTickX') ? $('diagramTickX') : $('tickX');
+      const tickYEl = state.activeTab === 'diagrams' && $('diagramTickY') ? $('diagramTickY') : ($('tickY') || $('tickX'));
+      const labelEveryEl = state.activeTab === 'diagrams' && $('diagramLabelEvery') ? $('diagramLabelEvery') : $('labelEvery');
+      const labelEveryXEl = state.activeTab === 'diagrams' ? $('diagramLabelEveryX') : null;
+      const labelEveryYEl = state.activeTab === 'diagrams' ? $('diagramLabelEveryY') : null;
+      const labelStartXEl = state.activeTab === 'diagrams' && $('diagramLabelStartX') ? $('diagramLabelStartX') : $('labelStartX');
+      const labelStartYEl = state.activeTab === 'diagrams' && $('diagramLabelStartY') ? $('diagramLabelStartY') : $('labelStartY');
+      const showZeroEl = state.activeTab === 'diagrams' && $('diagramShowZeroLabel') ? $('diagramShowZeroLabel') : $('showZeroLabel');
+      const showZeroXEl = $('diagramShowZeroLabelX');
+      const showZeroYEl = $('diagramShowZeroLabelY');
+      const xMinEl = state.activeTab === 'diagrams' && $('diagramXMinInput') ? $('diagramXMinInput') : $('xMinInput');
+      const xMaxEl = state.activeTab === 'diagrams' && $('diagramXMaxInput') ? $('diagramXMaxInput') : $('xMaxInput');
+      const yMinEl = state.activeTab === 'diagrams' && $('diagramYMinInput') ? $('diagramYMinInput') : $('yMinInput');
+      const yMaxEl = state.activeTab === 'diagrams' && $('diagramYMaxInput') ? $('diagramYMaxInput') : $('yMaxInput');
+      const axisDisplayModeEl = state.activeTab === 'diagrams' && $('diagramAxisDisplayMode') ? $('diagramAxisDisplayMode') : $('axisDisplayMode');
+      // Die eingestellte Framerate ist die physikalische Analyse-Framerate.
+      // Framezahl und browserinterne Datei-Framerate bleiben unveraendert.
+      const maySyncAxes = state.activeTab === 'diagrams' || (state.activeTab === 'axes' && isVideoAxisPanelOpen());
+      const videoTransformBefore = (state.activeTab === 'axes' && isVideoAxisPanelOpen())
+        ? { originX: state.origin.x, originY: state.origin.y, pxPerUnit: state.pxPerUnit, axisAngle: state.axisAngle, xDir: state.xDir, yDir: state.yDir }
+        : null;
+      if (maySyncAxes) {
+        if (axisColorEl) state.axis.color = axisColorEl.value;
+        if (gridColorEl) state.grid.color = gridColorEl.value;
+        state.axis.width = parseNum(axisWidthEl, state.axis.width, { min: 0.1 });
+        state.axis.opacity = parseNum(axisOpacityEl, state.axis.opacity, { min: 0, max: 1 });
+        state.axis.fontSize = parseNum(labelFontSizeEl, state.axis.fontSize, { min: 6 });
+        state.grid.width = parseNum(gridWidthEl, state.grid.width, { min: 0.1 });
+        state.grid.opacity = parseNum(gridOpacityEl, state.grid.opacity, { min: 0, max: 1 });
+        state.axis.arrowSize = parseNum(arrowSizeEl, state.axis.arrowSize, { min: 4 });
+        state.ticks.x = parseNum(tickXEl, state.ticks.x, { min: 0.000001 });
+        state.ticks.y = state.activeTab === 'diagrams'
+          ? parseNum(tickYEl, state.ticks.y, { min: 0.000001 })
+          : state.ticks.x;
+        state.ticks.labelEvery = Math.max(1, Math.round(parseNum(labelEveryEl, state.ticks.labelEvery, { min: 1 })));
+        if (state.activeTab === 'diagrams') {
+          state.ticks.labelEveryX = Math.max(1, Math.round(parseNum(labelEveryXEl, state.ticks.labelEveryX ?? state.ticks.labelEvery, { min: 1 })));
+          state.ticks.labelEveryY = Math.max(1, Math.round(parseNum(labelEveryYEl, state.ticks.labelEveryY ?? state.ticks.labelEvery, { min: 1 })));
+        } else {
+          state.ticks.labelEveryX = state.ticks.labelEvery;
+          state.ticks.labelEveryY = state.ticks.labelEvery;
+        }
+        state.ticks.labelStartX = parseNum(labelStartXEl, state.ticks.labelStartX);
+        state.ticks.labelStartY = parseNum(labelStartYEl, state.ticks.labelStartY);
+        if (showZeroEl) state.ticks.showZero = !!showZeroEl.checked;
+        if (showZeroXEl) state.ticks.showZeroX = !!showZeroXEl.checked;
+        if (showZeroYEl) state.ticks.showZeroY = !!showZeroYEl.checked;
+        state.xMin = parseNum(xMinEl, state.xMin);
+        state.xMax = parseNum(xMaxEl, state.xMax);
+        state.yMin = parseNum(yMinEl, state.yMin);
+        state.yMax = parseNum(yMaxEl, state.yMax);
+        state.axisAngle = parseNum($('axisAngleInput'), state.axisAngle);
+        if (axisDisplayModeEl) state.axisDisplayMode = axisDisplayModeEl.value || 'both';
+        if (videoTransformBefore) {
+          const transformChanged =
+            videoTransformBefore.originX !== state.origin.x ||
+            videoTransformBefore.originY !== state.origin.y ||
+            videoTransformBefore.pxPerUnit !== state.pxPerUnit ||
+            videoTransformBefore.axisAngle !== state.axisAngle ||
+            videoTransformBefore.xDir !== state.xDir ||
+            videoTransformBefore.yDir !== state.yDir;
+          if (transformChanged) refreshTrackingAfterVideoAxesTransform();
+        }
+        saveActiveAxesProfile();
+      }
+      state.unit = $('scaleUnitInput').value.trim() || 'm';
+      state.timestamp.fontSize = Math.max(6, parseFloat($('timeFontSize').value) || 26);
+      state.timestamp.x = parseFloat($('timePosX').value) || 30;
+      state.timestamp.y = parseFloat($('timePosY').value) || 40;
+      state.timestamp.color = $('timeColor').value;
+      state.timestamp.opacity = clamp(parseFloat($('timeOpacity').value) || 0.95, 0, 1);
+      state.timestamp.bgColor = $('timeBgColor').value;
+      state.timestamp.bgOpacity = clamp(parseFloat($('timeBgOpacity').value) || 0.85, 0, 1);
+      state.timeCal.aTime = parseFloat($('timeCalA').value) || 0;
+      state.timeCal.bTime = parseFloat($('timeCalB').value) || 1;
+      if ($('trackStepInput')) state.tracking.step = Math.max(1, Math.round(parseFloat($('trackStepInput').value) || 1));
+      if ($('trackMarkerSize')) state.tracking.markerSize = Math.max(4, parseFloat($('trackMarkerSize').value) || 10);
+      if ($('diagramType')) state.diagram.type = $('diagramType').value || 'xy';
+      if ($('symbolType')) state.diagram.symbolType = $('symbolType').value || 'dot';
+      if ($('symbolSize')) state.diagram.symbolSize = Math.max(2, parseFloat($('symbolSize').value) || 8);
+      if ($('symbolColor')) state.diagram.symbolColor = $('symbolColor').value;
+      if ($('fitType')) state.diagram.fitType = $('fitType').value || 'none';
+      if ($('fitMode')) state.diagram.fitMode = $('fitMode').value || 'manual';
+      if ($('fitMode')) state.diagram.fitMode = $('fitMode').value || 'manual';
+      if ($('fitVisible')) state.diagram.fitVisible = !!$('fitVisible').checked;
+      if ($('fitWidth')) state.diagram.fitWidth = Math.max(0.5, parseFloat($('fitWidth').value) || 2);
+      if ($('fitColor')) state.diagram.fitColor = $('fitColor').value;
+      if ($('fitOpacity')) state.diagram.fitOpacity = clamp(parseFloat($('fitOpacity').value) || 1, 0, 1);
+      if ($('fitStyle')) state.diagram.fitStyle = $('fitStyle').value || 'solid';
+      if ($('legendFontSize')) state.diagram.legendFontSize = Math.max(10, parseFloat($('legendFontSize').value) || 16);
+      if ($('fitParamA')) state.diagram.params.a = parseNum($('fitParamA'), state.diagram.params.a);
+      if ($('fitParamB')) state.diagram.params.b = parseNum($('fitParamB'), state.diagram.params.b);
+      if ($('fitParamC')) state.diagram.params.c = parseNum($('fitParamC'), state.diagram.params.c);
+      if ($('fitParamW')) state.diagram.params.w = parseNum($('fitParamW'), state.diagram.params.w);
+
+      const syncFitParamRange = (key, sliderId, minId, maxId) => {
+        const oldRange = state.diagram.paramRanges[key] || [-5, 5];
+        const lo = parseNum($(minId), oldRange[0]);
+        const hi = parseNum($(maxId), oldRange[1]);
+        state.diagram.paramRanges[key] = [lo, hi];
+        const slider = $(sliderId);
+        if (slider && Number.isFinite(lo) && Number.isFinite(hi) && hi > lo) {
+          slider.min = String(lo);
+          slider.max = String(hi);
+          const current = parseNum(slider, state.diagram.params[key]);
+          const clamped = clamp(current, lo, hi);
+          state.diagram.params[key] = clamped;
+          slider.value = String(clamped);
+        }
+      };
+      syncFitParamRange('a', 'fitParamA', 'fitParamAMin', 'fitParamAMax');
+      syncFitParamRange('b', 'fitParamB', 'fitParamBMin', 'fitParamBMax');
+      syncFitParamRange('c', 'fitParamC', 'fitParamCMin', 'fitParamCMax');
+      syncFitParamRange('w', 'fitParamW', 'fitParamWMin', 'fitParamWMax');
+      if (oldFps !== state.fps || oldTimeCal !== JSON.stringify(state.timeCal)) {
+        refreshTrackingTimes();
+      }
+      updateUiFromState();
+      updateNavigationUi();
+      draw();
+    }
+
+    function resizeCanvasToVideo(options = {}) {
+      if (!video.videoWidth || !video.videoHeight) return;
+      const resetOrigin = options.resetOrigin === true;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      if (resetOrigin) {
+        state.origin = { x: canvas.width * 0.14, y: canvas.height * 0.8 };
+      }
+    }
+
+    function restoreVideoCanvasAfterDiagram() {
+      if (!state.loaded || !video.videoWidth || !video.videoHeight) return;
+      resizeCanvasToVideo({ resetOrigin: false });
+      loadAxesProfile('video');
+      state.scaleVisible = false;
+      state.tracking.hasPointer = false;
+    }
+
+    function analysisDuration() {
+      const n = Math.max(1, state.frameCount || 1);
+      return n / Math.max(0.001, state.fps || 30);
+    }
+
+    function frameToTime(frame) {
+      if (state.manualFrameTimeOverrides.has(frame)) return state.manualFrameTimeOverrides.get(frame);
+      if (state.timeCal.calibrated) {
+        return state.timeCal.anchorTime + (frame - state.timeCal.anchorFrame) / state.fps;
+      }
+      return (frame - state.t0Frame) / state.fps;
+    }
+
+    function refreshTrackingTimes() {
+      if (!state.tracking || !Array.isArray(state.tracking.points)) return;
+      for (const p of state.tracking.points) {
+        p.t = frameToTime(p.frame);
+      }
+    }
+
+    function refreshTrackingCoordinatesFromScreen() {
+      if (!state.tracking || !Array.isArray(state.tracking.points)) return;
+      for (const p of state.tracking.points) {
+        if (Number.isFinite(p.sx) && Number.isFinite(p.sy)) {
+          const world = screenToWorld(p.sx, p.sy);
+          p.x = world.x;
+          p.y = world.y;
+          p.t = frameToTime(p.frame);
+        }
+      }
+    }
+
+
+    function refreshTrackingAfterVideoAxesTransform() {
+      // Objektverfolgung speichert die gemessenen Bildpunkte dauerhaft als sx/sy.
+      // Wenn das Video-Koordinatensystem verschoben, gedreht, gespiegelt oder im Maßstab geändert wird,
+      // werden daraus die Weltkoordinaten neu berechnet. Diagramm-KO-Systeme dürfen diese Daten nicht ändern.
+      if (state.currentAxesProfile !== 'video' && state.activeTab === 'diagrams') return;
+      refreshTrackingCoordinatesFromScreen();
+    }
+    function currentVideoFrame() { return Math.round(video.currentTime * state.sourceFps); }
+
+    function totalFrames() {
+      return Math.max(0, state.frameCount - 1);
+    }
+
+    function clampToSelectedRange(frame) {
+      const start = Math.min(state.firstFrame, state.lastFrame ?? totalFrames());
+      const end = Math.max(state.firstFrame, state.lastFrame ?? totalFrames());
+      return clamp(frame, start, end);
+    }
+
+    function updateTimelineSelection() {
+      const maxF = Math.max(1, totalFrames());
+      const first = clamp(state.firstFrame ?? 0, 0, maxF);
+      const last = clamp((state.lastFrame ?? maxF), 0, maxF);
+      const start = Math.min(first, last);
+      const end = Math.max(first, last);
+      const startPct = (start / maxF) * 100;
+      const endPct = (end / maxF) * 100;
+      const range = $('timelineRange');
+      const startMarker = $('timelineStartMarker');
+      const endMarker = $('timelineEndMarker');
+      range.style.left = startPct + '%';
+      range.style.width = Math.max(0, endPct - startPct) + '%';
+      startMarker.style.left = 'calc(' + startPct + '% - 1px)';
+      endMarker.style.left = 'calc(' + endPct + '% - 1px)';
+      range.style.display = 'block';
+      startMarker.style.display = 'block';
+      endMarker.style.display = 'block';
+    }
+
+    function seekVideo(time) {
+      return new Promise((resolve) => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          resolve();
+        };
+        video.addEventListener('seeked', onSeeked, { once: true });
+        video.currentTime = clamp(time, 0, Math.max(0, video.duration || time));
+      });
+    }
+
+    async function gotoFrame(frame) {
+      if (!state.loaded) return;
+      const maxFrame = totalFrames();
+      const target = clampToSelectedRange(clamp(Math.round(frame), 0, maxFrame));
+      state.currentFrame = target;
+      $('currentFrameInput').value = target;
+      const t = clamp(target / state.sourceFps, 0, Math.max(0, video.duration - 1 / Math.max(state.sourceFps, 1)));
+      await seekVideo(t);
+      draw();
+    }
+
+    async function stepFrame(delta) {
+      if (!state.loaded) return;
+      await gotoFrame(state.currentFrame + delta);
+    }
+
+    async function loadVideoFile(file) {
+      if (!file) return;
+      if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
+      state.videoUrl = URL.createObjectURL(file);
+      state.loaded = false;
+      setStatus('Video wird geladen ...');
+
+      const ok = await new Promise((resolve) => {
+        const onLoaded = () => { cleanup(); resolve(true); };
+        const onError = () => { cleanup(); resolve(false); };
+        function cleanup() {
+          video.removeEventListener('loadedmetadata', onLoaded);
+          video.removeEventListener('canplay', onLoaded);
+          video.removeEventListener('error', onError);
+        }
+        video.addEventListener('loadedmetadata', onLoaded, { once: true });
+        video.addEventListener('canplay', onLoaded, { once: true });
+        video.addEventListener('error', onError, { once: true });
+        video.src = state.videoUrl;
+        video.load();
+      });
+
+      if (!ok || !video.videoWidth || !video.videoHeight) {
+        setStatus('Video konnte nicht geladen werden.');
+        draw();
+        return;
+      }
+
+      resizeCanvasToVideo({ resetOrigin: true });
+      timeline.max = Math.max(video.duration, 0);
+      timeline.value = 0;
+      state.loaded = true;
+      state.detectedFps = 30;
+      state.originalDetectedFps = 30;
+      state.fps = 30;
+      state.sourceFps = state.detectedFps;
+      state.frameCount = Math.max(1, Math.round(video.duration * state.sourceFps));
+      state.t0Frame = 0;
+      state.currentFrame = 0;
+      state.firstFrame = 0;
+      state.lastFrame = Math.max(0, state.frameCount - 1);
+      state.timeCal.calibrated = false;
+      state.timeCal.anchorFrame = 0;
+      state.timeCal.anchorTime = 0;
+      state.manualFrameTimeOverrides.clear();
+      autoSetupRanges();
+      refreshTrackingCoordinatesFromScreen();
+      state.videoAxesProfile = readAxesProfileFromState();
+      ensureDefaultScalePoints();
+      updateUiFromState();
+      await gotoFrame(0);
+      setStatus('Video geladen: ' + file.name);
+    }
+
+    function autoSetupRanges() {
+      const marginPx = 40;
+      state.xMin = round((marginPx - state.origin.x) / state.pxPerUnit, 2);
+      state.xMax = round((canvas.width - marginPx - state.origin.x) / state.pxPerUnit, 2);
+      state.yMin = round((state.origin.y - (canvas.height - marginPx)) / state.pxPerUnit, 2);
+      state.yMax = round((state.origin.y - marginPx) / state.pxPerUnit, 2);
+
+      const xHalf = Math.max(Math.abs(state.xMin), Math.abs(state.xMax));
+      const yHalf = Math.max(Math.abs(state.yMin), Math.abs(state.yMax));
+      const commonHalf = Math.max(xHalf, yHalf);
+
+      state.xMin = -commonHalf;
+      state.xMax = commonHalf;
+      state.yMin = -commonHalf;
+      state.yMax = commonHalf;
+
+      autoTicks();
+    }
+
+    function applyScaleFromReference() {
+      if (!(state.scaleVisible && state.scalePoints.length === 2)) return;
+      const dpx = Math.hypot(state.scalePoints[1].x - state.scalePoints[0].x, state.scalePoints[1].y - state.scalePoints[0].y);
+      const dReal = parseFloat($('scaleDistanceInput').value);
+      if (!(dpx > 0) || !(dReal > 0)) return;
+      state.pxPerUnit = dpx / dReal;
+      state.unit = $('scaleUnitInput').value.trim() || 'm';
+      autoSetupRanges();
+      refreshTrackingCoordinatesFromScreen();
+      state.videoAxesProfile = readAxesProfileFromState();
+      updateUiFromState();
+      draw();
+    }
+
+    function autoTicks() {
+      const xSpan = Math.max(1e-9, state.xMax - state.xMin);
+      const ySpan = Math.max(1e-9, state.yMax - state.yMin);
+      const common = niceStep(Math.max(xSpan / 8, ySpan / 6));
+      state.ticks.x = common;
+      state.ticks.y = common;
+      state.ticks.labelEvery = 1;
+      state.ticks.labelEveryX = 1;
+      state.ticks.labelEveryY = 1;
+      state.ticks.labelStartX = 0; state.ticks.labelStartY = 0;
+      state.ticks.showZero = false; state.ticks.showZeroX = false; state.ticks.showZeroY = false;
+      updateUiFromState();
+      draw();
+    }
+
+    function worldToScreen(x, y) {
+      const th = state.axisAngle * Math.PI / 180;
+      const c = Math.cos(th), s = Math.sin(th);
+      const xr = state.xDir * x;
+      const yr = state.yDir * y;
+      const dx = (xr * c - yr * s) * state.pxPerUnit;
+      const dy = -(xr * s + yr * c) * state.pxPerUnit;
+      return { x: state.origin.x + dx, y: state.origin.y + dy };
+    }
+    function screenToWorld(x, y) {
+      const dx = (x - state.origin.x) / state.pxPerUnit;
+      const dy = -(y - state.origin.y) / state.pxPerUnit;
+      const th = state.axisAngle * Math.PI / 180;
+      const c = Math.cos(th), s = Math.sin(th);
+      const xr = dx * c + dy * s;
+      const yr = -dx * s + dy * c;
+      return { x: xr / state.xDir, y: yr / state.yDir };
+    }
+
+    function drawArrow(x1, y1, x2, y2, color, width, arrowSize) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - arrowSize * Math.cos(angle - Math.PI / 6), y2 - arrowSize * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - arrowSize * Math.cos(angle + Math.PI / 6), y2 - arrowSize * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+    }
+
+    function formatTick(v) {
+      const av = Math.abs(v);
+      if (av >= 1000 || (av > 0 && av < 0.01)) return v.toExponential(1);
+      if (Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
+      return String(round(v, 3));
+    }
+
+    function axisHandles() {
+      const arrowInset = Math.max(18, screenPxToCanvasPx(state.axis.arrowSize) + 6) / state.pxPerUnit;
+      const xLeft = worldToScreen(state.xMin, 0);
+      const xRight = worldToScreen(Math.max(state.xMin, state.xMax - arrowInset), 0);
+      const yBottom = worldToScreen(0, state.yMin);
+      const yTop = worldToScreen(0, Math.max(state.yMin, state.yMax - arrowInset));
+      const rotR = screenPxToCanvasPx(26);
+      const rotAng = (state.axisAngle + 45) * Math.PI / 180;
+      return {
+        xMin: { x: xLeft.x, y: xLeft.y, cursor: 'ew-resize' },
+        xMax: { x: xRight.x, y: xRight.y, cursor: 'ew-resize' },
+        yMin: { x: yBottom.x, y: yBottom.y, cursor: 'ns-resize' },
+        yMax: { x: yTop.x, y: yTop.y, cursor: 'ns-resize' },
+        rotate: { x: state.origin.x + rotR * Math.cos(rotAng), y: state.origin.y - rotR * Math.sin(rotAng), cursor: 'grab' }
+      };
+    }
+
+    function labelHandles() {
+      if (state.activeTab === 'diagrams' && state.diagramGeometry) {
+        const g = state.diagramGeometry;
+        const xmin = g.xmin, xmax = g.xmax, ymin = g.ymin, ymax = g.ymax;
+        const sx = g.sx, sy = g.sy;
+        const showX = state.axisDisplayMode !== 'yOnly';
+        const showY = state.axisDisplayMode !== 'xOnly';
+
+        const xAxisY = (ymin <= 0 && ymax >= 0) ? sy(0) : g.plotBottom;
+        const yAxisX = (xmin <= 0 && xmax >= 0) ? sx(0) : g.plotLeft;
+
+        const xTick = state.ticks.x * Math.max(1, state.ticks.labelEveryX ?? state.ticks.labelEvery);
+        const xBaseVal = Math.min(xmax, Math.max(xmin, xTick));
+        const xBase = { x: sx(xBaseVal), y: xAxisY };
+        const xTangent = { x: 1, y: 0 };
+        const xNormal = { x: 0, y: 1 };
+
+        const yTick = state.ticks.y * Math.max(1, state.ticks.labelEveryY ?? state.ticks.labelEvery);
+        const yBaseVal = Math.min(ymax, Math.max(ymin, yTick));
+        const yBase = { x: yAxisX, y: sy(yBaseVal) };
+        const yTangent = { x: 0, y: -1 };
+        const yNormal = { x: 1, y: 0 };
+
+        return {
+          xLabel: {
+            x: xBase.x + xNormal.x * state.xLabelOffsetN + xTangent.x * state.xLabelOffsetT,
+            y: xBase.y + xNormal.y * state.xLabelOffsetN + xTangent.y * state.xLabelOffsetT,
+            cursor: 'move'
+          },
+          yLabel: {
+            x: yBase.x + yNormal.x * state.yLabelOffsetN + yTangent.x * state.yLabelOffsetT,
+            y: yBase.y + yNormal.y * state.yLabelOffsetN + yTangent.y * state.yLabelOffsetT,
+            cursor: 'move'
+          },
+          xNormal: xNormal,
+          xTangent: xTangent,
+          yNormal: yNormal,
+          yTangent: yTangent
+        };
+      }
+
+      const xTick = state.ticks.x * Math.max(1, state.ticks.labelEveryX ?? state.ticks.labelEvery);
+      const yTick = state.ticks.y * Math.max(1, state.ticks.labelEveryY ?? state.ticks.labelEvery);
+
+      const xBase = worldToScreen(Math.min(state.xMax, Math.max(state.xMin, xTick)), 0);
+      const xAlong = worldToScreen(Math.min(state.xMax, Math.max(state.xMin, xTick + 0.001)), 0);
+      const xNormal = worldToScreen(Math.min(state.xMax, Math.max(state.xMin, xTick)), 0.001);
+      const xTVx = xAlong.x - xBase.x, xTVy = xAlong.y - xBase.y;
+      const xTNorm = Math.hypot(xTVx, xTVy) || 1;
+      const xTx = xTVx / xTNorm, xTy = xTVy / xTNorm;
+      const xNVx = xNormal.x - xBase.x, xNVy = xNormal.y - xBase.y;
+      const xNNorm = Math.hypot(xNVx, xNVy) || 1;
+      const xNx = xNVx / xNNorm, xNy = xNVy / xNNorm;
+
+      const yBase = worldToScreen(0, Math.min(state.yMax, Math.max(state.yMin, yTick)));
+      const yAlong = worldToScreen(0, Math.min(state.yMax, Math.max(state.yMin, yTick + 0.001)));
+      const yNormal = worldToScreen(0.001, Math.min(state.yMax, Math.max(state.yMin, yTick)));
+      const yTVx = yAlong.x - yBase.x, yTVy = yAlong.y - yBase.y;
+      const yTNorm = Math.hypot(yTVx, yTVy) || 1;
+      const yTx = yTVx / yTNorm, yTy = yTVy / yTNorm;
+      const yNVx = yNormal.x - yBase.x, yNVy = yNormal.y - yBase.y;
+      const yNNorm = Math.hypot(yNVx, yNVy) || 1;
+      const yNx = yNVx / yNNorm, yNy = yNVy / yNNorm;
+
+      return {
+        xLabel: {
+          x: xBase.x + xNx * state.xLabelOffsetN + xTx * state.xLabelOffsetT,
+          y: xBase.y + xNy * state.xLabelOffsetN + xTy * state.xLabelOffsetT,
+          cursor: 'move'
+        },
+        yLabel: {
+          x: yBase.x + yNx * state.yLabelOffsetN + yTx * state.yLabelOffsetT,
+          y: yBase.y + yNy * state.yLabelOffsetN + yTy * state.yLabelOffsetT,
+          cursor: 'move'
+        },
+        xNormal: { x: xNx, y: xNy },
+        xTangent: { x: xTx, y: xTy },
+        yNormal: { x: yNx, y: yNy },
+        yTangent: { x: yTx, y: yTy }
+      };
+    }
+
+    function drawHandle(x, y, fill, hollow = false) {
+      ctx.save();
+      const r = interactiveHandleRadius();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = screenPxToCanvasPx(2);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      if (!hollow) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      ctx.stroke();
+      if (hollow) {
+        ctx.strokeStyle = fill || '#0f172a';
+        ctx.lineWidth = screenPxToCanvasPx(2.4);
+        ctx.beginPath();
+        ctx.moveTo(x - r * 0.55, y);
+        ctx.lineTo(x + r * 0.55, y);
+        ctx.moveTo(x, y - r * 0.55);
+        ctx.lineTo(x, y + r * 0.55);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawGridAndAxes() {
+      const axisColor = rgba(state.axis.color, state.axis.opacity);
+      const gridColor = rgba(state.grid.color, state.grid.opacity);
+      const fsize = screenPxToCanvasPx(state.axis.fontSize);
+      const showX = state.axisDisplayMode !== 'yOnly';
+      const showY = state.axisDisplayMode !== 'xOnly';
+
+      ctx.save();
+      ctx.font = fsize + 'px Inter, Arial, sans-serif';
+      ctx.textBaseline = 'top';
+
+      if (showX && showY) {
+        ctx.strokeStyle = gridColor;
+        ctx.lineWidth = screenPxToCanvasPx(state.grid.width);
+        for (let x = Math.ceil(state.xMin / state.ticks.x) * state.ticks.x; x <= state.xMax + 1e-12; x += state.ticks.x) {
+          const p1 = worldToScreen(x, state.yMin);
+          const p2 = worldToScreen(x, state.yMax);
+          ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        }
+        for (let y = Math.ceil(state.yMin / state.ticks.y) * state.ticks.y; y <= state.yMax + 1e-12; y += state.ticks.y) {
+          const p1 = worldToScreen(state.xMin, y);
+          const p2 = worldToScreen(state.xMax, y);
+          ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        }
+      }
+
+      const axisW = screenPxToCanvasPx(state.axis.width);
+      const arrowSize = screenPxToCanvasPx(state.axis.arrowSize);
+      const tickLen = screenPxToCanvasPx(8);
+      ctx.strokeStyle = axisColor;
+      ctx.fillStyle = axisColor;
+      ctx.lineWidth = axisW;
+
+      if (showX) {
+        const xLeft = worldToScreen(state.xMin, 0);
+        const xRight = worldToScreen(state.xMax, 0);
+        drawArrow(xLeft.x, xLeft.y, xRight.x, xRight.y, axisColor, axisW, arrowSize);
+        let i = 0;
+        for (let x = Math.ceil(state.xMin / state.ticks.x) * state.ticks.x; x <= state.xMax + 1e-12; x += state.ticks.x, i++) {
+          if (Math.abs(x - state.xMax) < 1e-9) continue;
+          const p = worldToScreen(x, 0);
+          const q = worldToScreen(x, 0.001);
+          const a = worldToScreen(x + 0.001, 0);
+          const vx = q.x - p.x, vy = q.y - p.y;
+          const norm = Math.hypot(vx, vy) || 1;
+          const nx = vx / norm, ny = vy / norm;
+          const tvx = a.x - p.x, tvy = a.y - p.y;
+          const tnorm = Math.hypot(tvx, tvy) || 1;
+          const tx = tvx / tnorm, ty = tvy / tnorm;
+          ctx.beginPath();
+          ctx.moveTo(p.x - nx * tickLen, p.y - ny * tickLen);
+          ctx.lineTo(p.x + nx * tickLen, p.y + ny * tickLen);
+          ctx.stroke();
+          const dx = x - state.ticks.labelStartX;
+          const step = state.ticks.x;
+          const k = dx / step;
+          const shouldLabelX = Math.abs(k - Math.round(k)) < 1e-6 && (Math.round(k) % (state.ticks.labelEveryX ?? state.ticks.labelEvery) === 0);
+          const isZeroX = Math.abs(x) <= 1e-12;
+          if (shouldLabelX && (((state.ticks.showZeroX ?? state.ticks.showZero)) || !isZeroX)) {
+            const txt = formatTick(x);
+            const w = ctx.measureText(txt).width;
+            ctx.fillText(txt, p.x + nx * state.xLabelOffsetN + tx * state.xLabelOffsetT - w / 2, p.y + ny * state.xLabelOffsetN + ty * state.xLabelOffsetT);
+          }
+        }
+      }
+
+      if (showY) {
+        const yBottom = worldToScreen(0, state.yMin);
+        const yTop = worldToScreen(0, state.yMax);
+        drawArrow(yBottom.x, yBottom.y, yTop.x, yTop.y, axisColor, axisW, arrowSize);
+        let i = 0;
+        for (let y = Math.ceil(state.yMin / state.ticks.y) * state.ticks.y; y <= state.yMax + 1e-12; y += state.ticks.y, i++) {
+          if (Math.abs(y - state.yMax) < 1e-9) continue;
+          const p = worldToScreen(0, y);
+          const q = worldToScreen(0.001, y);
+          const a = worldToScreen(0, y + 0.001);
+          const vx = q.x - p.x, vy = q.y - p.y;
+          const norm = Math.hypot(vx, vy) || 1;
+          const nx = vx / norm, ny = vy / norm;
+          const tvx = a.x - p.x, tvy = a.y - p.y;
+          const tnorm = Math.hypot(tvx, tvy) || 1;
+          const tx = tvx / tnorm, ty = tvy / tnorm;
+          ctx.beginPath();
+          ctx.moveTo(p.x - nx * tickLen, p.y - ny * tickLen);
+          ctx.lineTo(p.x + nx * tickLen, p.y + ny * tickLen);
+          ctx.stroke();
+          const dy = y - state.ticks.labelStartY;
+          const step = state.ticks.y;
+          const k = dy / step;
+          const shouldLabelY = Math.abs(k - Math.round(k)) < 1e-6 && (Math.round(k) % (state.ticks.labelEveryY ?? state.ticks.labelEvery) === 0);
+          const isZeroY = Math.abs(y) <= 1e-12;
+          if (shouldLabelY && (((state.ticks.showZeroY ?? state.ticks.showZero)) || !isZeroY)) {
+            const txt = formatTick(y);
+            ctx.fillText(txt, p.x + nx * state.yLabelOffsetN + tx * state.yLabelOffsetT, p.y + ny * state.yLabelOffsetN + ty * state.yLabelOffsetT - fsize * 0.5);
+          }
+        }
+      }
+
+      if (showX && showY) ctx.fillText('0', state.origin.x + 8, state.origin.y + 8);
+
+      const interactiveAxes = state.activeTab === 'axes' && isVideoAxisPanelOpen() && !state.scaleVisible;
+      const hs = axisHandles();
+      if (interactiveAxes) {
+        if (showX) {
+          drawHandle(hs.xMin.x, hs.xMin.y, '#fde68a');
+          drawHandle(hs.xMax.x, hs.xMax.y, '#fde68a');
+        }
+        if (showY) {
+          drawHandle(hs.yMin.x, hs.yMin.y, '#fca5a5');
+          drawHandle(hs.yMax.x, hs.yMax.y, '#fca5a5');
+        }
+        drawHandle(state.origin.x, state.origin.y, '#2563eb', true);
+
+        const rr = screenPxToCanvasPx(22);
+        ctx.strokeStyle = 'rgba(15,23,42,0.75)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(state.origin.x, state.origin.y, rr, -0.2 * Math.PI, 0.75 * Math.PI);
+        ctx.stroke();
+        drawHandle(hs.rotate.x, hs.rotate.y, '#cbd5e1');
+        const lhs = labelHandles();
+        if (state.showLabelHandles) {
+          if (showX) drawHandle(lhs.xLabel.x, lhs.xLabel.y, '#bfdbfe');
+          if (showY) drawHandle(lhs.yLabel.x, lhs.yLabel.y, '#bfdbfe');
+        }
+      }
+
+      if (state.scaleVisible && state.scalePoints.length > 0) {
+        const scaleHandleR = screenPxToCanvasPx(12);
+        const scaleStroke = 'rgba(220,38,38,0.95)';
+        ctx.strokeStyle = scaleStroke;
+        ctx.lineWidth = screenPxToCanvasPx(3.5);
+        if (state.scalePoints.length === 2) {
+          ctx.beginPath();
+          ctx.moveTo(state.scalePoints[0].x, state.scalePoints[0].y);
+          ctx.lineTo(state.scalePoints[1].x, state.scalePoints[1].y);
+          ctx.stroke();
+        }
+        state.scalePoints.forEach((p, idx) => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, scaleHandleR, 0, Math.PI * 2);
+          ctx.strokeStyle = scaleStroke;
+          ctx.lineWidth = screenPxToCanvasPx(3.5);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(p.x - scaleHandleR * 0.45, p.y);
+          ctx.lineTo(p.x + scaleHandleR * 0.45, p.y);
+          ctx.moveTo(p.x, p.y - scaleHandleR * 0.45);
+          ctx.lineTo(p.x, p.y + scaleHandleR * 0.45);
+          ctx.strokeStyle = scaleStroke;
+          ctx.lineWidth = screenPxToCanvasPx(2.6);
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(220,38,38,0.96)';
+          ctx.font = screenPxToCanvasPx(16) + 'px Inter, Arial, sans-serif';
+          ctx.fillText(String(idx + 1), p.x + scaleHandleR + 8, p.y - scaleHandleR - 4);
+        });
+      }
+      ctx.restore();
+    }
+
+    function drawTimestamp() {
+      if (!state.timestamp.enabled) return;
+      const txt = 't = ' + frameToTime(state.currentFrame).toFixed(3) + ' s';
+      ctx.save();
+      const tsFont = screenPxToCanvasPx(state.timestamp.fontSize);
+      ctx.font = tsFont + 'px Inter, Arial, sans-serif';
+      ctx.textBaseline = 'top';
+      const w = ctx.measureText(txt).width;
+      const padX = 10;
+      const padY = 6;
+      const boxW = w + 2 * padX;
+      const boxH = tsFont + 2 * padY;
+      if (state.timestamp.bgEnabled) {
+        const x = state.timestamp.x - padX;
+        const y = state.timestamp.y - padY;
+        const r = 10;
+        ctx.fillStyle = rgba(state.timestamp.bgColor, state.timestamp.bgOpacity);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + boxW - r, y);
+        ctx.quadraticCurveTo(x + boxW, y, x + boxW, y + r);
+        ctx.lineTo(x + boxW, y + boxH - r);
+        ctx.quadraticCurveTo(x + boxW, y + boxH, x + boxW - r, y + boxH);
+        ctx.lineTo(x + r, y + boxH);
+        ctx.quadraticCurveTo(x, y + boxH, x, y + boxH - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.fillStyle = rgba(state.timestamp.color, state.timestamp.opacity);
+      ctx.fillText(txt, state.timestamp.x, state.timestamp.y);
+      ctx.restore();
+    }
+
+    function drawMagnifier() {
+      if (!state.magnifier.enabled || state.magnifier.pointIndex == null) return;
+      const sourceX = state.magnifier.x;
+      const sourceY = state.magnifier.y;
+      const r = state.magnifier.radius;
+      const zoom = state.magnifier.zoom;
+
+      let lensX = sourceX + r + 24;
+      let lensY = sourceY - r - 24;
+      if (lensX + r > canvas.width - 8) lensX = sourceX - r - 24;
+      if (lensX - r < 8) lensX = sourceX + r + 24;
+      if (lensY - r < 8) lensY = sourceY + r + 24;
+      if (lensY + r > canvas.height - 8) lensY = sourceY - r - 24;
+
+      const sampleR = r / zoom;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lensX, lensY, r, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      ctx.drawImage(
+        canvas,
+        sourceX - sampleR, sourceY - sampleR, sampleR * 2, sampleR * 2,
+        lensX - r, lensY - r, r * 2, r * 2
+      );
+
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(15,23,42,0.95)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(lensX, lensY, r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(220,38,38,0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(lensX - r, lensY);
+      ctx.lineTo(lensX + r, lensY);
+      ctx.moveTo(lensX, lensY - r);
+      ctx.lineTo(lensX, lensY + r);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(15,23,42,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sourceX, sourceY);
+      ctx.lineTo(lensX, lensY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+
+    function strobeTrackedPoints(step) {
+      // WICHTIG: Stroboskop-/Streifenbild-Einstellungen dürfen die
+      // Objektverfolgungsdaten niemals verändern. Deshalb werden hier nur
+      // unverknüpfte Kopien verwendet. Die entscheidenden Referenzen sind die
+      // gespeicherten Bildkoordinaten sx/sy im Original-Video-Frame.
+      const pts = [...state.tracking.points]
+        .sort((a,b)=>a.frame-b.frame)
+        .map(p => ({
+          frame: p.frame,
+          t: frameToTime(p.frame),
+          sx: Number(p.sx),
+          sy: Number(p.sy),
+          x: Number(p.x),
+          y: Number(p.y)
+        }))
+        .filter(p => Number.isFinite(p.frame) && Number.isFinite(p.sx) && Number.isFinite(p.sy));
+      if (!pts.length) return [];
+      const n = Math.max(1, Math.round(step || 1));
+      return pts.filter((_, i) => i % n === 0);
+    }
+
+    function drawStripMarker(targetCtx, x, y) {
+      targetCtx.save();
+      targetCtx.fillStyle = '#ff0000';
+      targetCtx.strokeStyle = '#000000';
+      targetCtx.lineWidth = 1.5;
+      const r = Math.max(3, Math.min(10, (Number(state.tracking.markerSize) || 10) * 0.35));
+      targetCtx.beginPath();
+      targetCtx.arc(x, y, r, 0, Math.PI * 2);
+      targetCtx.fill();
+      targetCtx.stroke();
+      targetCtx.restore();
+    }
+
+    function drawRoundedRectPath(targetCtx, x, y, w, h, r) {
+      const rr = Math.min(r, w/2, h/2);
+      targetCtx.beginPath();
+      targetCtx.moveTo(x + rr, y);
+      targetCtx.lineTo(x + w - rr, y);
+      targetCtx.quadraticCurveTo(x + w, y, x + w, y + rr);
+      targetCtx.lineTo(x + w, y + h - rr);
+      targetCtx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+      targetCtx.lineTo(x + rr, y + h);
+      targetCtx.quadraticCurveTo(x, y + h, x, y + h - rr);
+      targetCtx.lineTo(x, y + rr);
+      targetCtx.quadraticCurveTo(x, y, x + rr, y);
+      targetCtx.closePath();
+    }
+
+    function drawMarkerOnContext(targetCtx, x, y, sizePx) {
+      targetCtx.save();
+      const r = Math.max(3, (Number(sizePx) || state.tracking.markerSize || 10) / 2);
+      targetCtx.fillStyle = '#ff0000';
+      targetCtx.strokeStyle = '#000000';
+      targetCtx.lineWidth = 1.5;
+      targetCtx.beginPath();
+      targetCtx.arc(x, y, r, 0, Math.PI * 2);
+      targetCtx.fill();
+      targetCtx.stroke();
+      targetCtx.restore();
+    }
+
+    async function renderVideoFrameCanvas(frame, opts = {}) {
+      // Stroboskop-/Streifenbilder dürfen die sichtbare Canvas-Geometrie und
+      // die gespeicherten Trackingdaten nicht verändern. Deshalb wird das
+      // Einzelbild zuerst immer in einem Offscreen-Canvas mit echter
+      // Videogröße gezeichnet. Die Objektpositionen sx/sy beziehen sich auf
+      // genau diese Videogeometrie.
+      const vw = video.videoWidth || canvas.width;
+      const vh = video.videoHeight || canvas.height;
+      const c = document.createElement('canvas');
+      c.width = vw;
+      c.height = vh;
+      const cctx = c.getContext('2d');
+      if (!state.loaded) return c;
+
+      const oldFrame = state.currentFrame;
+      const oldCanvasW = canvas.width;
+      const oldCanvasH = canvas.height;
+      const oldTab = state.activeTab;
+
+      state.currentFrame = frame;
+      const seekTime = clamp(frame / Math.max(state.sourceFps, 1), 0, Math.max(0, (video.duration || 0) - 1 / Math.max(state.sourceFps, 1)));
+      await seekVideo(seekTime);
+      cctx.drawImage(video, 0, 0, vw, vh);
+
+      if (opts.axes) {
+        canvas.width = vw;
+        canvas.height = vh;
+        ctx.clearRect(0, 0, vw, vh);
+        ctx.drawImage(c, 0, 0);
+        drawGridAndAxes();
+        cctx.clearRect(0, 0, vw, vh);
+        cctx.drawImage(canvas, 0, 0);
+      }
+
+      if (opts.markers) {
+        const stamped = state.tracking.points.find(p => p.frame === frame);
+        if (stamped && Number.isFinite(stamped.sx) && Number.isFinite(stamped.sy)) {
+          drawMarkerOnContext(cctx, stamped.sx, stamped.sy, 8);
+        }
+      }
+
+      state.currentFrame = oldFrame;
+      state.activeTab = oldTab;
+      canvas.width = oldCanvasW;
+      canvas.height = oldCanvasH;
+      return c;
+    }
+
+    async function buildStroboscopeImage() {
+      if (state.strobe.rendering) { state.strobe.pendingStrobe = true; return; }
+      if (!state.loaded || !state.tracking.points.length) {
+        state.strobe.outputCanvas = null;
+        state.strobe.lastError = 'Keine Objektmarkierungen vorhanden.';
+        draw();
+        return;
+      }
+      restoreVideoCanvasAfterDiagram();
+      restoreVideoCanvasAfterDiagram();
+      state.strobe.rendering = true;
+      state.strobe.lastError = '';
+      const renderToken = ++state.strobe.renderToken;
+      draw();
+      const oldFrame = state.currentFrame;
+      const oldTime = video.currentTime;
+      try {
+        const step = parseInt(($('strobeStepInput')?.value || '1'), 10) || 1;
+        const pts = strobeTrackedPoints(step);
+        const showAxes = !!$('strobeShowAxes')?.checked;
+        const showMarkers = !!$('strobeShowMarkers')?.checked;
+        const dia = parseFloat($('strobeCircleSize')?.value || state.tracking.markerSize || 10) || 10;
+        const bg = await renderVideoFrameCanvas(pts[0].frame, { axes: showAxes, markers: showMarkers });
+        const out = document.createElement('canvas');
+        out.width = bg.width;
+        out.height = bg.height;
+        const octx = out.getContext('2d');
+        octx.drawImage(bg, 0, 0);
+        const r = dia / 2;
+        for (const pt of pts) {
+          const fc = await renderVideoFrameCanvas(pt.frame, { axes: showAxes, markers: showMarkers });
+          octx.save();
+          octx.beginPath();
+          octx.arc(pt.sx, pt.sy, r, 0, Math.PI * 2);
+          octx.clip();
+          octx.drawImage(fc, pt.sx - r, pt.sy - r, dia, dia, pt.sx - r, pt.sy - r, dia, dia);
+          octx.restore();
+        }
+        if (renderToken === state.strobe.renderToken) {
+          state.strobe.mode = 'strobe';
+          state.strobe.outputCanvas = out;
+        }
+      } finally {
+        await seekVideo(oldTime);
+        state.currentFrame = oldFrame;
+        state.strobe.rendering = false;
+        const again = state.strobe.pendingStrobe;
+        state.strobe.pendingStrobe = false;
+        draw();
+        if (again) buildStroboscopeImage();
+      }
+    }
+
+    function drawStripTimestamp(targetCtx, text, x, y, fontSize) {
+      targetCtx.save();
+      targetCtx.font = fontSize + 'px Inter, Arial, sans-serif';
+      targetCtx.textBaseline = 'middle';
+      const padX = Math.max(6, fontSize * 0.45);
+      const padY = Math.max(3, fontSize * 0.25);
+      const w = targetCtx.measureText(text).width + 2 * padX;
+      const h = fontSize + 2 * padY;
+      drawRoundedRectPath(targetCtx, x, y - h / 2, w, h, Math.min(10, h / 2));
+      targetCtx.fillStyle = 'rgba(255,255,255,0.94)';
+      targetCtx.fill();
+      targetCtx.strokeStyle = 'rgba(15,23,42,0.18)';
+      targetCtx.lineWidth = 1;
+      targetCtx.stroke();
+      targetCtx.fillStyle = '#000000';
+      targetCtx.fillText(text, x + padX, y);
+      targetCtx.restore();
+      return { x, y: y - h / 2, w, h };
+    }
+
+    function drawVerticalStripTimestamp(targetCtx, text, centerX, y, fontSize) {
+      targetCtx.save();
+      targetCtx.font = fontSize + 'px Inter, Arial, sans-serif';
+      targetCtx.textBaseline = 'middle';
+      const padX = Math.max(6, fontSize * 0.45);
+      const padY = Math.max(3, fontSize * 0.25);
+      const textW = targetCtx.measureText(text).width;
+      const boxW = textW + 2 * padX;
+      const boxH = fontSize + 2 * padY;
+
+      // Vertikalmodus: Zeitstempel wird um 90° gedreht und entlang der
+      // Streifenrichtung (also vertikal) verschoben. Die x-Position bleibt in
+      // der Mitte des jeweiligen Streifens.
+      targetCtx.translate(centerX, y);
+      targetCtx.rotate(Math.PI / 2);
+      drawRoundedRectPath(targetCtx, 0, -boxH / 2, boxW, boxH, Math.min(10, boxH / 2));
+      targetCtx.fillStyle = 'rgba(255,255,255,0.94)';
+      targetCtx.fill();
+      targetCtx.strokeStyle = 'rgba(15,23,42,0.18)';
+      targetCtx.lineWidth = 1;
+      targetCtx.stroke();
+      targetCtx.fillStyle = '#000000';
+      targetCtx.fillText(text, padX, 0);
+      targetCtx.restore();
+
+      // Näherungsweise achsparallele Trefferfläche fürs gemeinsame Ziehen.
+      return { x: centerX - boxH / 2, y, w: boxH, h: boxW };
+    }
+
+    async function buildStripImage() {
+      if (state.strobe.rendering) { state.strobe.pendingStrip = true; return; }
+      // Wichtig: Vor jeder Neuberechnung zurück auf die echte Videogröße.
+      // Die Trackingpunkte speichern ihre Bildschirm-/Framekoordinaten (sx/sy)
+      // in der Original-Videogeometrie. Streifen dürfen deshalb nie aus einem
+      // bereits erzeugten Streifenbild oder einer skalierten Canvasgröße
+      // heraus berechnet werden.
+      restoreVideoCanvasAfterDiagram();
+      if (!state.loaded || !state.tracking.points.length) {
+        state.strobe.outputCanvas = null;
+        state.strobe.stripTimestampItems = [];
+        state.strobe.timestampRects = [];
+        state.strobe.lastError = 'Keine Objektmarkierungen vorhanden.';
+        draw();
+        return;
+      }
+      state.strobe.rendering = true;
+      state.strobe.lastError = '';
+      const renderToken = ++state.strobe.renderToken;
+      draw();
+      const oldFrame = state.currentFrame;
+      const oldTime = video.currentTime;
+      try {
+        const orientation = $('stripOrientation')?.value || 'horizontal';
+        const step = parseInt(($('stripStepInput')?.value || '1'), 10) || 1;
+        const pts = strobeTrackedPoints(step);
+        const showAxes = !!$('stripShowAxes')?.checked;
+        const showMarkers = !!$('stripShowMarkers')?.checked;
+        const thickness = Math.max(1, parseFloat($('stripThickness')?.value || state.tracking.markerSize || 10) || 10);
+        const gap = Math.max(0, parseFloat($('stripGap')?.value || 8) || 0);
+        const margin = 18;
+        const isH = orientation === 'horizontal';
+        const stripW = video.videoWidth || canvas.width;
+        const stripH = video.videoHeight || canvas.height;
+        const out = document.createElement('canvas');
+        if (isH) {
+          // Horizontal: Jeder Streifen ist so breit wie der gesamte Frame und
+          // wird um die y-Position des jeweiligen Objekts zentriert.
+          out.width = stripW + 2 * margin;
+          out.height = Math.max(1, margin * 2 + pts.length * thickness + Math.max(0, pts.length - 1) * gap);
+        } else {
+          // Vertikal: Jede Spalte ist so hoch wie der gesamte Frame und wird
+          // um die x-Position des jeweiligen Objekts zentriert.
+          out.width = Math.max(1, margin * 2 + pts.length * thickness + Math.max(0, pts.length - 1) * gap);
+          out.height = stripH + 2 * margin;
+        }
+        const octx = out.getContext('2d');
+        octx.fillStyle = '#ffffff';
+        drawRoundedRectPath(octx, 0, 0, out.width, out.height, 24);
+        octx.fill();
+
+        const timestampItems = [];
+        for (let i = 0; i < pts.length; i++) {
+          const pt = pts[i];
+          // Markierungen werden NICHT in das Quellframe hineingerendert.
+          // Sonst können beim Beschneiden alte/benachbarte Markierungen im
+          // Streifen landen. Stattdessen wird die Markierung nach dem Kopieren
+          // exakt an die zum Streifen gehörende Position gesetzt.
+          const fc = await renderVideoFrameCanvas(pt.frame, { axes: showAxes, markers: false });
+          const srcW = fc.width;
+          const srcH = fc.height;
+          const cx = clamp(pt.sx, 0, srcW);
+          const cy = clamp(pt.sy, 0, srcH);
+          const text = 't = ' + frameToTime(pt.frame).toFixed(3) + ' s';
+          if (isH) {
+            // Horizontal: voller Frame in x-Richtung; Ausschnitt ist um die
+            // im jeweiligen Frame erfasste y-Position zentriert.
+            const sy0 = clamp(cy - thickness / 2, 0, Math.max(0, srcH - thickness));
+            const dy = margin + i * (thickness + gap);
+            octx.drawImage(fc, 0, sy0, srcW, thickness, margin, dy, stripW, thickness);
+            if (showMarkers) drawStripMarker(octx, margin + cx, dy + (cy - sy0));
+            timestampItems.push({ text, orientation: 'horizontal', x: margin, y: dy + thickness / 2 });
+          } else {
+            // Vertikal: voller Frame in y-Richtung; Spalte ist um die im
+            // jeweiligen Frame erfasste x-Position zentriert.
+            const sx0 = clamp(cx - thickness / 2, 0, Math.max(0, srcW - thickness));
+            const dx = margin + i * (thickness + gap);
+            octx.drawImage(fc, sx0, 0, thickness, srcH, dx, margin, thickness, stripH);
+            if (showMarkers) drawStripMarker(octx, dx + (cx - sx0), margin + cy);
+            timestampItems.push({ text, orientation: 'vertical', x: dx + thickness / 2, y: margin });
+          }
+        }
+        if (renderToken === state.strobe.renderToken) {
+          state.strobe.mode = 'strip';
+          state.strobe.stripOrientation = orientation;
+          state.strobe.outputCanvas = out;
+          state.strobe.stripTimestampItems = timestampItems;
+          state.strobe.timestampRects = [];
+        }
+      } finally {
+        await seekVideo(oldTime);
+        state.currentFrame = oldFrame;
+        state.strobe.rendering = false;
+        const again = state.strobe.pendingStrip;
+        state.strobe.pendingStrip = false;
+        draw();
+        if (again) buildStripImage();
+      }
+    }
+
+    function drawStripTimestampOverlayOn(targetCtx, collectRects = false) {
+      if (state.strobe.mode !== 'strip' || !state.strobe.outputCanvas) return;
+      const items = state.strobe.stripTimestampItems || [];
+      const fontSize = Math.max(6, parseFloat($('stripTimestampFontSize')?.value || 16) || 16);
+      const rects = [];
+      for (const item of items) {
+        if (item.orientation === 'vertical') {
+          const rect = drawVerticalStripTimestamp(targetCtx, item.text, item.x, item.y + state.strobe.timestampOffset, fontSize);
+          rects.push(rect);
+        } else {
+          const rect = drawStripTimestamp(targetCtx, item.text, item.x + state.strobe.timestampOffset, item.y, fontSize);
+          rects.push(rect);
+        }
+      }
+      if (collectRects) state.strobe.timestampRects = rects;
+    }
+
+    function drawStripTimestampOverlay() {
+      state.strobe.timestampRects = [];
+      drawStripTimestampOverlayOn(ctx, true);
+    }
+
+    function currentStrobeCompositeCanvas() {
+      const out = state.strobe.outputCanvas;
+      if (!out) return null;
+      if (state.strobe.mode === 'strip') {
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = out.width;
+        exportCanvas.height = out.height;
+        const exportCtx = exportCanvas.getContext('2d');
+        exportCtx.drawImage(out, 0, 0);
+        drawStripTimestampOverlayOn(exportCtx, false);
+        return exportCanvas;
+      }
+      if (state.strobe.mode === 'strobe') {
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = out.width;
+        exportCanvas.height = out.height;
+        const exportCtx = exportCanvas.getContext('2d');
+        exportCtx.drawImage(out, 0, 0);
+        return exportCanvas;
+      }
+      return null;
+    }
+
+    function currentStrobeImageName(exportCanvas) {
+      const mode = state.strobe.mode === 'strip' ? 'streifenbild' : 'stroboskopbild';
+      const orientation = state.strobe.mode === 'strip' ? '_' + (state.strobe.stripOrientation || ($('stripOrientation')?.value || 'horizontal')) : '';
+      return `${mode}${orientation}_${exportCanvas.width}x${exportCanvas.height}px.png`;
+    }
+
+    async function exportCurrentStrobeImage() {
+      const exportCanvas = currentStrobeCompositeCanvas();
+      if (!exportCanvas) {
+        setStatus('Bitte zuerst ein Stroboskop- oder Streifenbild erzeugen.');
+        return;
+      }
+      const blob = await blobFromCanvas(exportCanvas, 'image/png');
+      if (!blob) {
+        setStatus('Bild-Export fehlgeschlagen.');
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = currentStrobeImageName(exportCanvas);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus(`Bild exportiert: ${exportCanvas.width}×${exportCanvas.height} px.`);
+    }
+
+    async function copyCurrentStrobeImageToClipboard() {
+      const exportCanvas = currentStrobeCompositeCanvas();
+      if (!exportCanvas) {
+        setStatus('Bitte zuerst ein Stroboskop- oder Streifenbild erzeugen.');
+        return;
+      }
+      if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+        setStatus('Zwischenablage wird von diesem Browser/Dateikontext nicht unterstützt. Bitte Export verwenden.');
+        return;
+      }
+      const blob = await blobFromCanvas(exportCanvas, 'image/png');
+      if (!blob) {
+        setStatus('Kopieren in die Zwischenablage fehlgeschlagen.');
+        return;
+      }
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        setStatus(`Bild in die Zwischenablage kopiert: ${exportCanvas.width}×${exportCanvas.height} px.`);
+      } catch (err) {
+        setStatus('Kopieren in die Zwischenablage fehlgeschlagen. Bitte Export verwenden.');
+      }
+    }
+
+    function scheduleStripRebuild() {
+      if (state.strobe.rebuildTimer) clearTimeout(state.strobe.rebuildTimer);
+      state.strobe.rebuildTimer = setTimeout(() => {
+        state.strobe.rebuildTimer = null;
+        buildStripImage();
+      }, 120);
+    }
+
+    function drawStrobeMode() {
+      updateFitHeaderEquation();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const out = state.strobe.outputCanvas;
+      if (out) {
+        if (canvas.width !== out.width || canvas.height !== out.height) {
+          canvas.width = out.width;
+          canvas.height = out.height;
+        }
+        ctx.drawImage(out, 0, 0);
+        if (state.strobe.mode === 'strip') drawStripTimestampOverlay();
+      } else {
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#64748b';
+        ctx.font = '24px Inter, sans-serif';
+        const msg = state.strobe.rendering ? 'Bild wird erzeugt ...' : (state.strobe.lastError || 'Stroboskop- oder Streifenbild erzeugen');
+        ctx.fillText(msg, 40, 60);
+      }
+      updateMeta();
+    }
+
+    function draw() {
+      if (state.activeTab === 'diagrams') {
+        drawDiagram();
+        return;
+      }
+      if (state.activeTab === 'strobes') {
+        drawStrobeMode();
+        return;
+      }
+      updateFitHeaderEquation();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (state.loaded) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = '#dbe4ef';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#64748b';
+        ctx.font = '28px Inter, sans-serif';
+        ctx.fillText('Video per Drag-and-drop oder Dateidialog laden', 40, 60);
+      }
+      drawGridAndAxes();
+      drawTimestamp();
+      drawMagnifier();
+      renderTrackingOverlay();
+      updateMeta();
+    }
+
+    function updateMeta() {
+      if (!state.loaded) {
+        metaText.textContent = 'Kein Video geladen.';
+        return;
+      }
+      const currentTime = frameToTime(state.currentFrame).toFixed(3);
+      const totalF = totalFrames();
+      const abInfo = (state.timeCal.aFrame != null && state.timeCal.bFrame != null)
+        ? ' | A: n=' + state.timeCal.aFrame + ', t=' + (parseFloat($('timeCalA').value) || 0).toFixed(3) + ' s'
+          + ' | B: n=' + state.timeCal.bFrame + ', t=' + (parseFloat($('timeCalB').value) || 0).toFixed(3) + ' s'
+        : '';
+      metaText.textContent = 'Video: ' + video.videoWidth + '×' + video.videoHeight + ' px | Analysedauer: ' + analysisDuration().toFixed(3) + ' s | fps: ' + state.fps.toFixed(3) + ' | Frame: ' + state.currentFrame + '/' + totalF + ' | Auswahl: ' + state.firstFrame + '–' + (state.lastFrame ?? totalF) + ' | t = ' + currentTime + ' s' + abInfo;
+      timeline.max = video.duration;
+      timeline.value = video.currentTime;
+      updateTimelineSelection();
+      updateNavigationUi();
+    }
+
+    function pointerPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: (evt.clientX - rect.left) * (canvas.width / rect.width), y: (evt.clientY - rect.top) * (canvas.height / rect.height) };
+    }
+    function hitCircle(p, c, r) {
+      return Math.hypot(p.x - c.x, p.y - c.y) <= (r || (state.handleRadius + 4));
+    }
+
+    function timestampRect() {
+      ctx.save();
+      const tsFont = screenPxToCanvasPx(state.timestamp.fontSize);
+      ctx.font = tsFont + 'px Inter, Arial, sans-serif';
+      const txt = 't = ' + frameToTime(state.currentFrame).toFixed(3) + ' s';
+      const w = ctx.measureText(txt).width;
+      ctx.restore();
+      const padX = state.timestamp.bgEnabled ? 10 : 6;
+      const padY = state.timestamp.bgEnabled ? 6 : 4;
+      return { x: state.timestamp.x - padX, y: state.timestamp.y - padY, w: w + 2 * padX, h: tsFont + 2 * padY };
+    }
+
+    function pointInRect(p, r) {
+      return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    }
+
+    canvas.addEventListener('pointerdown', async (evt) => {
+      const p = pointerPos(evt);
+      canvas.setPointerCapture(evt.pointerId);
+      if (state.activeTab === 'tracking') {
+        if (!state.loaded) return;
+        const r = screenPxToCanvasPx(state.tracking.markerSize)/2 + 6;
+        const dx = p.x - state.tracking.pointerX, dy = p.y - state.tracking.pointerY;
+        if (Math.hypot(dx, dy) <= r) {
+          state.drag = { type: 'trackingPointer', offsetX: dx, offsetY: dy };
+        } else {
+          state.tracking.pointerX = p.x;
+          state.tracking.pointerY = p.y;
+          state.drag = { type: 'trackingPointer', offsetX: 0, offsetY: 0 };
+        }
+        state.magnifier.enabled = true;
+        state.magnifier.pointIndex = 'tracking';
+        state.magnifier.x = state.tracking.pointerX;
+        state.magnifier.y = state.tracking.pointerY;
+        draw();
+        return;
+      }
+      if (state.activeTab === 'strobes') {
+        const rects = state.strobe.timestampRects || [];
+        if (rects.some(r => pointInRect(p, r))) {
+          const orient = state.strobe.stripOrientation || ($('stripOrientation')?.value || 'horizontal');
+          state.drag = { type: 'stripTimestamp', startX: p.x, startY: p.y, startOffset: state.strobe.timestampOffset, orientation: orient };
+          return;
+        }
+        return;
+      }
+      if (state.activeTab === 'diagrams') {
+        const lr = legendRect();
+        if (p.x >= lr.x && p.x <= lr.x + lr.w && p.y >= lr.y && p.y <= lr.y + lr.h) {
+          state.drag = { type: 'legend', offsetX: p.x - state.diagram.legendX, offsetY: p.y - state.diagram.legendY };
+          return;
+        }
+      }
+      const hs = axisHandles();
+      const lhs = labelHandles();
+      if (state.scaleVisible && state.scalePoints.length === 2) {
+        if (hitCircle(p, state.scalePoints[0], interactiveHitRadius())) {
+          state.drag = { type: 'scalePoint0', offsetX: p.x - state.scalePoints[0].x, offsetY: p.y - state.scalePoints[0].y };
+          state.magnifier.enabled = true;
+          state.magnifier.pointIndex = 0;
+          state.magnifier.x = state.scalePoints[0].x;
+          state.magnifier.y = state.scalePoints[0].y;
+          return;
+        }
+        if (hitCircle(p, state.scalePoints[1], interactiveHitRadius())) {
+          state.drag = { type: 'scalePoint1', offsetX: p.x - state.scalePoints[1].x, offsetY: p.y - state.scalePoints[1].y };
+          state.magnifier.enabled = true;
+          state.magnifier.pointIndex = 1;
+          state.magnifier.x = state.scalePoints[1].x;
+          state.magnifier.y = state.scalePoints[1].y;
+          return;
+        }
+        return;
+      }
+      if (state.showLabelHandles && (state.activeTab === 'diagrams' || isVideoAxisPanelOpen()) && hitCircle(p, lhs.xLabel, interactiveHitRadius())) {
+        state.drag = { type: 'xLabelDrag', startX: p.x, startY: p.y, startOffsetN: state.xLabelOffsetN, startOffsetT: state.xLabelOffsetT, nx: lhs.xNormal.x, ny: lhs.xNormal.y, tx: lhs.xTangent.x, ty: lhs.xTangent.y };
+        return;
+      }
+      if (state.showLabelHandles && (state.activeTab === 'diagrams' || isVideoAxisPanelOpen()) && hitCircle(p, lhs.yLabel, interactiveHitRadius())) {
+        state.drag = { type: 'yLabelDrag', startX: p.x, startY: p.y, startOffsetN: state.yLabelOffsetN, startOffsetT: state.yLabelOffsetT, nx: lhs.yNormal.x, ny: lhs.yNormal.y, tx: lhs.yTangent.x, ty: lhs.yTangent.y };
+        return;
+      }
+      if (state.activeTab === 'diagrams' && state.showLabelHandles) {
+        const th = axisTitleHandles();
+        if (th && hitCircle(p, th.xTitle, 12)) {
+          state.drag = { type: 'xAxisTitleDrag', offsetX: p.x - th.xTitle.x, offsetY: p.y - th.xTitle.y };
+          return;
+        }
+        if (th && hitCircle(p, th.yTitle, 12)) {
+          state.drag = { type: 'yAxisTitleDrag', offsetX: p.x - th.yTitle.x, offsetY: p.y - th.yTitle.y };
+          return;
+        }
+      }
+      if (state.activeTab === 'axes' && isVideoAxisPanelOpen() && !state.scaleVisible && hitCircle(p, state.origin, interactiveHitRadius())) {
+        state.drag = { type: 'origin', offsetX: p.x - state.origin.x, offsetY: p.y - state.origin.y };
+        state.magnifier.enabled = true;
+        state.magnifier.pointIndex = 'origin';
+        state.magnifier.x = state.origin.x;
+        state.magnifier.y = state.origin.y;
+        draw();
+        return;
+      }
+      for (const key of Object.keys(hs)) {
+        if (hitCircle(p, hs[key])) {
+          state.drag = { type: key };
+          return;
+        }
+      }
+      if (state.timestamp.enabled && pointInRect(p, timestampRect())) {
+        state.drag = { type: 'timestamp', offsetX: p.x - state.timestamp.x, offsetY: p.y - state.timestamp.y };
+        return;
+      }
+      if (state.mode === 'origin') {
+        state.origin = { x: p.x, y: p.y };
+        autoSetupRanges();
+        refreshTrackingAfterVideoAxesTransform();
+        saveActiveAxesProfile();
+        updateUiFromState();
+        draw();
+        return;
+      }
+      if (state.mode === 'pan') {
+        state.drag = { type: 'pan', startX: p.x, startY: p.y, ox: state.origin.x, oy: state.origin.y };
+      }
+    });
+
+    canvas.addEventListener('pointermove', (evt) => {
+      const p = pointerPos(evt);
+      if (state.activeTab === 'tracking') {
+        state.tracking.hasPointer = true;
+        canvas.style.cursor = 'crosshair';
+        if (state.drag && state.drag.type === 'trackingPointer') {
+          state.tracking.pointerX = p.x - state.drag.offsetX;
+          state.tracking.pointerY = p.y - state.drag.offsetY;
+          state.magnifier.enabled = true;
+          state.magnifier.pointIndex = 'tracking';
+          state.magnifier.x = state.tracking.pointerX;
+          state.magnifier.y = state.tracking.pointerY;
+        }
+        draw();
+        return;
+      }
+      if (state.activeTab === 'strobes') {
+        if (state.drag && state.drag.type === 'stripTimestamp') {
+          const delta = state.drag.orientation === 'vertical' ? (p.y - state.drag.startY) : (p.x - state.drag.startX);
+          state.strobe.timestampOffset = state.drag.startOffset + delta;
+          draw();
+        }
+        return;
+      }
+      if (state.activeTab === 'diagrams') {
+        if (state.drag && state.drag.type === 'legend') {
+          state.diagram.legendX = p.x - state.drag.offsetX;
+          state.diagram.legendY = p.y - state.drag.offsetY;
+          draw();
+          return;
+        }
+      }
+      let cursor = 'default';
+      const hs = axisHandles();
+      const lhs = labelHandles();
+      if (state.scaleVisible && state.scalePoints.length === 2) {
+        if (hitCircle(p, state.scalePoints[0], interactiveHitRadius()) || hitCircle(p, state.scalePoints[1], interactiveHitRadius())) cursor = 'move';
+        canvas.style.cursor = cursor;
+        if (!state.drag) return;
+      } else {
+        if (state.showLabelHandles && (hitCircle(p, lhs.xLabel, interactiveHitRadius()) || hitCircle(p, lhs.yLabel, interactiveHitRadius()))) cursor = 'move';
+          if (state.activeTab === 'diagrams' && state.showLabelHandles) {
+          const th = axisTitleHandles();
+          if (th && (hitCircle(p, th.xTitle, 12) || hitCircle(p, th.yTitle, 12))) cursor = 'move';
+        }
+        if (hitCircle(p, state.origin)) cursor = 'move';
+        for (const key of Object.keys(hs)) {
+          if (hitCircle(p, hs[key])) cursor = hs[key].cursor || 'move';
+        }
+        if (state.timestamp.enabled && pointInRect(p, timestampRect())) cursor = 'move';
+        canvas.style.cursor = cursor;
+        if (!state.drag) return;
+      }
+      if (state.drag.type === 'xLabelDrag') {
+        const dx = p.x - state.drag.startX;
+        const dy = p.y - state.drag.startY;
+        state.xLabelOffsetN = state.drag.startOffsetN + dx * state.drag.nx + dy * state.drag.ny;
+        state.xLabelOffsetT = state.drag.startOffsetT + dx * state.drag.tx + dy * state.drag.ty;
+        draw();
+      } else if (state.drag.type === 'yLabelDrag') {
+        const dx = p.x - state.drag.startX;
+        const dy = p.y - state.drag.startY;
+        state.yLabelOffsetN = state.drag.startOffsetN + dx * state.drag.nx + dy * state.drag.ny;
+        state.yLabelOffsetT = state.drag.startOffsetT + dx * state.drag.tx + dy * state.drag.ty;
+        draw();
+      } else if (state.drag.type === 'xAxisTitleDrag') {
+        state.diagram.axisTitleX = { x: p.x - state.drag.offsetX, y: p.y - state.drag.offsetY };
+        draw();
+      } else if (state.drag.type === 'yAxisTitleDrag') {
+        state.diagram.axisTitleY = { x: p.x - state.drag.offsetX, y: p.y - state.drag.offsetY };
+        draw();
+      } else if (state.drag.type === 'rotate') {
+        const ang = Math.atan2(state.origin.y - p.y, p.x - state.origin.x) * 180 / Math.PI;
+        state.axisAngle = round(ang, 1);
+        if ($('axisAngleInput')) $('axisAngleInput').value = state.axisAngle;
+        draw();
+      } else if (state.drag.type === 'scalePoint0') {
+        state.scalePoints[0].x = p.x - state.drag.offsetX;
+        state.scalePoints[0].y = p.y - state.drag.offsetY;
+        state.magnifier.enabled = true;
+        state.magnifier.pointIndex = 0;
+        state.magnifier.x = state.scalePoints[0].x;
+        state.magnifier.y = state.scalePoints[0].y;
+        draw();
+      } else if (state.drag.type === 'scalePoint1') {
+        state.scalePoints[1].x = p.x - state.drag.offsetX;
+        state.scalePoints[1].y = p.y - state.drag.offsetY;
+        state.magnifier.enabled = true;
+        state.magnifier.pointIndex = 1;
+        state.magnifier.x = state.scalePoints[1].x;
+        state.magnifier.y = state.scalePoints[1].y;
+        draw();
+      } else if (state.drag.type === 'origin') {
+        state.origin.x = p.x - state.drag.offsetX;
+        state.origin.y = p.y - state.drag.offsetY;
+        state.magnifier.enabled = true;
+        state.magnifier.pointIndex = 'origin';
+        state.magnifier.x = state.origin.x;
+        state.magnifier.y = state.origin.y;
+        draw();
+      } else if (state.drag.type === 'timestamp') {
+        state.timestamp.x = p.x - state.drag.offsetX;
+        state.timestamp.y = p.y - state.drag.offsetY;
+        $('timePosX').value = round(state.timestamp.x, 0);
+        $('timePosY').value = round(state.timestamp.y, 0);
+        draw();
+      } else if (state.drag.type === 'xMin') {
+        const w = screenToWorld(p.x, state.origin.y);
+        state.xMin = Math.min(w.x, state.xMax - 1e-6);
+        $('xMinInput').value = round(state.xMin, 3);
+        draw();
+      } else if (state.drag.type === 'xMax') {
+        const w = screenToWorld(p.x, state.origin.y);
+        state.xMax = Math.max(w.x, state.xMin + 1e-6);
+        $('xMaxInput').value = round(state.xMax, 3);
+        draw();
+      } else if (state.drag.type === 'yMin') {
+        const w = screenToWorld(state.origin.x, p.y);
+        state.yMin = Math.min(w.y, state.yMax - 1e-6);
+        $('yMinInput').value = round(state.yMin, 3);
+        draw();
+      } else if (state.drag.type === 'yMax') {
+        const w = screenToWorld(state.origin.x, p.y);
+        state.yMax = Math.max(w.y, state.yMin + 1e-6);
+        $('yMaxInput').value = round(state.yMax, 3);
+        draw();
+      } else if (state.drag.type === 'pan') {
+        state.origin.x = state.drag.ox + (p.x - state.drag.startX);
+        state.origin.y = state.drag.oy + (p.y - state.drag.startY);
+        draw();
+      }
+    });
+    canvas.addEventListener('pointerup', async () => {
+      if (state.activeTab === 'tracking' && state.drag && state.drag.type === 'trackingPointer') {
+        const world = screenToWorld(state.tracking.pointerX, state.tracking.pointerY);
+        const existingIndex = state.tracking.points.findIndex(pt => pt.frame === state.currentFrame);
+        const entry = { frame: state.currentFrame, t: frameToTime(state.currentFrame), sx: state.tracking.pointerX, sy: state.tracking.pointerY, x: world.x, y: world.y };
+        if (existingIndex >= 0) state.tracking.points[existingIndex] = entry;
+        else state.tracking.points.push(entry);
+        state.tracking.points.sort((a,b)=>a.frame-b.frame);
+        state.drag = null;
+        state.magnifier.enabled = false;
+        state.magnifier.pointIndex = null;
+        updateNavigationUi();
+        draw();
+        await gotoFrame(state.currentFrame + effectiveFrameStep());
+        return;
+      }
+      const draggedType = state.drag ? state.drag.type : null;
+      state.drag = null;
+      if (draggedType === 'scalePoint0' || draggedType === 'scalePoint1') {
+        applyScaleFromReference();
+      }
+      if (['rotate','origin','pan'].includes(draggedType)) {
+        refreshTrackingAfterVideoAxesTransform();
+      }
+      if (['scalePoint0','scalePoint1','xLabelDrag','yLabelDrag','rotate','origin','xMin','xMax','yMin','yMax','pan'].includes(draggedType)) {
+        saveActiveAxesProfile();
+      }
+      state.magnifier.enabled = false;
+      state.magnifier.pointIndex = null;
+      updateUiFromState();
+      draw();
+    });
+    canvas.addEventListener('pointercancel', () => { state.drag = null; state.magnifier.enabled = false; state.magnifier.pointIndex = null; draw(); });
+    canvas.addEventListener('pointerleave', () => {
+      if (state.activeTab !== 'tracking') {
+        state.tracking.hasPointer = false;
+        draw();
+      } else if (!state.drag) {
+        state.magnifier.enabled = false;
+        state.magnifier.pointIndex = null;
+        draw();
+      }
+    });
+
+    $('openFileBtn').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) await loadVideoFile(file);
+    });
+
+    const dropzone = $('dropzone');
+    ['dragenter', 'dragover'].forEach(type => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('active');
+      });
+    });
+    ['dragleave', 'drop'].forEach(type => {
+      dropzone.addEventListener(type, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (type === 'drop') {
+          const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+          dropzone.classList.remove('active');
+          if (file) loadVideoFile(file);
+        } else {
+          dropzone.classList.remove('active');
+        }
+      });
+    });
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => e.preventDefault());
+
+    $('prevFrameBtn').addEventListener('click', () => stepFrame(-effectiveFrameStep()));
+    $('nextFrameBtn').addEventListener('click', () => stepFrame(effectiveFrameStep()));
+    $('playPauseBtn').addEventListener('click', async () => {
+      if (!state.loaded) return;
+      if (video.paused) {
+        try { await video.play(); } catch (e) {}
+      } else {
+        video.pause();
+      }
+    });
+    video.addEventListener('timeupdate', () => {
+      if (!state.loaded) return;
+      state.currentFrame = currentVideoFrame();
+      $('currentFrameInput').value = state.currentFrame;
+      draw();
+    });
+    timeline.addEventListener('input', async (e) => {
+      if (!state.loaded) return;
+      await seekVideo(parseFloat(e.target.value) || 0);
+      state.currentFrame = clampToSelectedRange(currentVideoFrame());
+      if (state.activeTab === 'tracking') {
+        const dn = effectiveFrameStep();
+        state.currentFrame = Math.round(state.currentFrame / dn) * dn;
+        state.currentFrame = clampToSelectedRange(state.currentFrame);
+      }
+      await seekVideo(state.currentFrame / state.sourceFps);
+      $('currentFrameInput').value = state.currentFrame;
+      draw();
+    });
+    $('currentFrameInput').addEventListener('change', () => gotoFrame(parseInt($('currentFrameInput').value, 10) || 0));
+
+    document.querySelectorAll('input, select').forEach(el => {
+      if (!['fileInput', 'timeline', 'currentFrameInput'].includes(el.id)) {
+        el.addEventListener('input', syncStateFromUi);
+        el.addEventListener('change', syncStateFromUi);
+      }
+    });
+
+    if ($('modePanBtn')) $('modePanBtn').addEventListener('click', () => { state.mode = 'pan'; setStatus('Modus: Achsen verschieben'); });
+    if ($('modeOriginBtn')) $('modeOriginBtn').addEventListener('click', () => { state.mode = 'origin'; setStatus('Modus: Ursprung setzen'); });
+    $('modeTimeBtn').addEventListener('click', () => { state.mode = 'time'; setStatus('Modus: Zeit kalibrieren'); setActiveTab('time'); });
+    $('scaleDistanceInput').addEventListener('input', () => { applyScaleFromReference(); });
+    $('scaleDistanceInput').addEventListener('change', () => { applyScaleFromReference(); });
+    $('scaleUnitInput').addEventListener('input', () => { applyScaleFromReference(); });
+    $('setT0CurrentFrameBtn').addEventListener('click', () => {
+      state.t0Frame = state.currentFrame;
+      state.timeCal.calibrated = false;
+      state.timeCal.anchorFrame = state.currentFrame;
+      state.timeCal.anchorTime = 0;
+      refreshTrackingTimes();
+      draw();
+      setStatus('t=0 wurde auf den aktuellen Frame gesetzt.');
+    });
+    $('captureTimeABtn').addEventListener('click', () => { state.timeCal.aFrame = state.currentFrame; setStatus('Zeit-Kalibrierung: Frame A = ' + state.timeCal.aFrame); });
+    $('captureTimeBBtn').addEventListener('click', () => { state.timeCal.bFrame = state.currentFrame; setStatus('Zeit-Kalibrierung: Frame B = ' + state.timeCal.bFrame); });
+    $('applyTimeCalibrationBtn').addEventListener('click', () => {
+      const aF = state.timeCal.aFrame;
+      const bF = state.timeCal.bFrame;
+      const aT = parseFloat($('timeCalA').value);
+      const bT = parseFloat($('timeCalB').value);
+      if (aF == null || bF == null || aF === bF || !isFinite(aT) || !isFinite(bT) || aT === bT) {
+        setStatus('Zeit-Kalibrierung unvollständig oder ungültig.');
+        return;
+      }
+      const dt = (bT - aT) / (bF - aF);
+      if (!isFinite(dt) || dt === 0) {
+        setStatus('Zeit-Kalibrierung unzulässig.');
+        return;
+      }
+      state.fps = Math.abs(1 / dt);
+      state.timeCal.calibrated = true;
+      state.timeCal.anchorFrame = aF;
+      state.timeCal.anchorTime = aT;
+      refreshTrackingTimes();
+      updateUiFromState();
+      draw();
+      setStatus('Neue Framerate aus Kalibrierung: ' + state.fps.toFixed(6) + ' fps (Framezahl bleibt unverändert).');
+    });
+    $('restoreDetectedFpsBtn').addEventListener('click', () => {
+      state.fps = state.originalDetectedFps;
+      state.timeCal.calibrated = false;
+      refreshTrackingTimes();
+      if (state.loaded) {
+        state.lastFrame = Math.min(state.lastFrame ?? (state.frameCount - 1), state.frameCount - 1);
+      }
+      updateUiFromState();
+      draw();
+      setStatus('Zur ursprünglich erkannten Analyse-Framerate zurückgekehrt. Framezahl bleibt unverändert.');
+    });
+
+            if ($('flipXBtn')) $('flipXBtn').addEventListener('click', () => { state.xDir *= -1; refreshTrackingAfterVideoAxesTransform(); saveActiveAxesProfile(); draw(); });
+    if ($('flipYBtn')) $('flipYBtn').addEventListener('click', () => { state.yDir *= -1; refreshTrackingAfterVideoAxesTransform(); saveActiveAxesProfile(); draw(); });
+    if ($('toggleLabelHandlesBtn')) $('toggleLabelHandlesBtn').addEventListener('click', () => { state.showLabelHandles = !state.showLabelHandles; draw(); });
+    if ($('diagramToggleLabelHandlesBtn')) $('diagramToggleLabelHandlesBtn').addEventListener('click', () => { state.showLabelHandles = !state.showLabelHandles; draw(); });
+    $('toggleTimestampBtn').addEventListener('click', () => { state.timestamp.enabled = !state.timestamp.enabled; draw(); });
+    $('resetTimestampPosBtn').addEventListener('click', () => {
+      state.timestamp.x = 30;
+      state.timestamp.y = 40;
+      updateUiFromState();
+      draw();
+    });
+    $('toggleTimestampBgBtn').addEventListener('click', () => {
+      state.timestamp.bgEnabled = !state.timestamp.bgEnabled;
+      draw();
+    });
+    $('setTimestampBgDefaultBtn').addEventListener('click', () => {
+      state.timestamp.bgEnabled = true;
+      state.timestamp.bgColor = '#ffffff';
+      state.timestamp.bgOpacity = 0.85;
+      state.timestamp.color = '#000000';
+      state.timestamp.opacity = 1;
+      updateUiFromState();
+      draw();
+    });
+
+    $('exportPngBtn').addEventListener('click', () => {
+      draw();
+      canvas.toBlob((blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'frame_' + String(state.currentFrame).padStart(5, '0') + '.png';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, 'image/png');
+    });
+
+    function crc32Png(bytes) {
+      let c = 0xffffffff;
+      for (let i = 0; i < bytes.length; i++) {
+        c ^= bytes[i];
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      return (c ^ 0xffffffff) >>> 0;
+    }
+
+    async function addPngDpiMetadata(blob, dpi) {
+      if (!blob || blob.type !== 'image/png') return blob;
+      const buffer = await blob.arrayBuffer();
+      const png = new Uint8Array(buffer);
+      const isPng = png.length > 33 && png[0] === 137 && png[1] === 80 && png[2] === 78 && png[3] === 71;
+      if (!isPng) return blob;
+
+      const ppm = Math.max(1, Math.round(Number(dpi || 300) / 0.0254));
+      const type = new Uint8Array([112, 72, 89, 115]); // pHYs
+      const data = new Uint8Array(9);
+      const dataView = new DataView(data.buffer);
+      dataView.setUint32(0, ppm, false);
+      dataView.setUint32(4, ppm, false);
+      data[8] = 1; // unit: meter
+
+      const crcInput = new Uint8Array(type.length + data.length);
+      crcInput.set(type, 0);
+      crcInput.set(data, type.length);
+      const crc = crc32Png(crcInput);
+
+      const chunk = new Uint8Array(4 + type.length + data.length + 4);
+      const view = new DataView(chunk.buffer);
+      view.setUint32(0, data.length, false);
+      chunk.set(type, 4);
+      chunk.set(data, 8);
+      view.setUint32(17, crc, false);
+
+      // Insert pHYs directly after IHDR: PNG signature 8 + IHDR chunk 25 = byte 33.
+      const insertAt = 33;
+      const out = new Uint8Array(png.length + chunk.length);
+      out.set(png.slice(0, insertAt), 0);
+      out.set(chunk, insertAt);
+      out.set(png.slice(insertAt), insertAt + chunk.length);
+      return new Blob([out], { type: 'image/png' });
+    }
+
+    function blobFromCanvas(targetCanvas, type = 'image/png') {
+      return new Promise(resolve => targetCanvas.toBlob(resolve, type));
+    }
+
+    if ($('diagramExportBtn')) $('diagramExportBtn').addEventListener('click', async () => {
+      const prevTab = state.activeTab;
+      if (prevTab !== 'diagrams') setActiveTab('diagrams');
+
+      const prevW = canvas.width;
+      const prevH = canvas.height;
+      const prevAxisTitleX = state.diagram.axisTitleX ? { ...state.diagram.axisTitleX } : null;
+      const prevAxisTitleY = state.diagram.axisTitleY ? { ...state.diagram.axisTitleY } : null;
+      const prevXLabelOffsetN = state.xLabelOffsetN;
+      const prevXLabelOffsetT = state.xLabelOffsetT;
+      const prevYLabelOffsetN = state.yLabelOffsetN;
+      const prevYLabelOffsetT = state.yLabelOffsetT;
+      const prevLegendX = state.diagram.legendX;
+      const prevLegendY = state.diagram.legendY;
+      const sizeCm = Number($('diagramExportSizeCm')?.value || 10);
+      const dpi = Number($('diagramExportDpi')?.value || 300);
+      const px = Math.max(1, Math.round(sizeCm / 2.54 * dpi));
+      const scaleX = px / Math.max(1, prevW);
+      const scaleY = px / Math.max(1, prevH);
+      const scaleAvg = 0.5 * (scaleX + scaleY);
+
+      try {
+        state.diagram.exportMode = true;
+
+        // Manuell verschobene Tick-Labels, Achsentitel und Legende werden
+        // proportional auf die Exportgroesse uebertragen. Dadurch bleibt die
+        // Bildschirmgestaltung auch bei 8/10/15 cm und 150/300/600 dpi erhalten.
+        state.xLabelOffsetN = prevXLabelOffsetN * scaleAvg;
+        state.xLabelOffsetT = prevXLabelOffsetT * scaleAvg;
+        state.yLabelOffsetN = prevYLabelOffsetN * scaleAvg;
+        state.yLabelOffsetT = prevYLabelOffsetT * scaleAvg;
+        if (prevAxisTitleX) state.diagram.axisTitleX = { x: prevAxisTitleX.x * scaleX, y: prevAxisTitleX.y * scaleY };
+        if (prevAxisTitleY) state.diagram.axisTitleY = { x: prevAxisTitleY.x * scaleX, y: prevAxisTitleY.y * scaleY };
+        state.diagram.legendX = prevLegendX * scaleX;
+        state.diagram.legendY = prevLegendY * scaleY;
+
+        canvas.width = px;
+        canvas.height = px;
+        draw();
+
+        let blob = await blobFromCanvas(canvas, 'image/png');
+        blob = await addPngDpiMetadata(blob, dpi);
+        if (!blob) throw new Error('Export fehlgeschlagen');
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `diagramm_${sizeCm}x${sizeCm}cm_${dpi}dpi.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } finally {
+        state.diagram.exportMode = false;
+        state.diagram.axisTitleX = prevAxisTitleX;
+        state.diagram.axisTitleY = prevAxisTitleY;
+        state.xLabelOffsetN = prevXLabelOffsetN;
+        state.xLabelOffsetT = prevXLabelOffsetT;
+        state.yLabelOffsetN = prevYLabelOffsetN;
+        state.yLabelOffsetT = prevYLabelOffsetT;
+        state.diagram.legendX = prevLegendX;
+        state.diagram.legendY = prevLegendY;
+        canvas.width = prevW;
+        canvas.height = prevH;
+        if (prevTab === 'diagrams') draw();
+        else setActiveTab(prevTab);
+      }
+    });
+
+    function bestSupportedVideoExportMime() {
+      // Ziel: MP4-Export. MediaRecorder kann MP4 nur in Browsern exportieren,
+      // die einen passenden MP4/H.264-Encoder anbieten. Falls kein MP4-Encoding
+      // verfuegbar ist, wird bewusst auf WebM zurueckgefallen, damit der Export
+      // nicht komplett scheitert.
+      const mp4Candidates = [
+        'video/mp4;codecs="avc1.42E01E"',
+        'video/mp4;codecs="avc1.4D401E"',
+        'video/mp4;codecs="avc1.64001E"',
+        'video/mp4;codecs="h264"',
+        'video/mp4'
+      ];
+      for (const mime of mp4Candidates) {
+        if (MediaRecorder.isTypeSupported(mime)) return { mime, ext: 'mp4', isMp4: true };
+      }
+
+      const fallbackCandidates = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm'
+      ];
+      for (const mime of fallbackCandidates) {
+        if (MediaRecorder.isTypeSupported(mime)) return { mime, ext: 'webm', isMp4: false };
+      }
+      return null;
+    }
+
+
+    function syncStrobeControlDefaults() {
+      if ($('strobeCircleSize')) $('strobeCircleSize').value = state.tracking.markerSize || 10;
+      if ($('stripThickness')) $('stripThickness').value = state.tracking.markerSize || 10;
+    }
+
+    if ($('strobeRenderBtn')) $('strobeRenderBtn').addEventListener('click', buildStroboscopeImage);
+    if ($('stripRenderBtn')) $('stripRenderBtn').addEventListener('click', buildStripImage);
+    if ($('strobeExportImageBtn')) $('strobeExportImageBtn').addEventListener('click', exportCurrentStrobeImage);
+    if ($('strobeCopyImageBtn')) $('strobeCopyImageBtn').addEventListener('click', copyCurrentStrobeImageToClipboard);
+    ['strobeStepInput','strobeCircleSize','strobeShowAxes','strobeShowMarkers'].forEach(id => {
+      const el = $(id);
+      if (el) el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
+        if (state.activeTab === 'strobes' && state.strobe.mode === 'strobe') buildStroboscopeImage();
+      });
+    });
+    ['stripOrientation','stripStepInput','stripThickness','stripGap','stripShowAxes','stripShowMarkers'].forEach(id => {
+      const el = $(id);
+      if (el) el.addEventListener(el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input', () => {
+        if (state.activeTab === 'strobes' && state.strobe.mode === 'strip') scheduleStripRebuild();
+      });
+    });
+    if ($('stripTimestampFontSize')) $('stripTimestampFontSize').addEventListener('input', () => {
+      if (state.activeTab === 'strobes' && state.strobe.mode === 'strip') draw();
+    });
+
+    $('exportVideoBtn').addEventListener('click', async () => {
+      if (!state.loaded) return;
+
+      const exportFormat = bestSupportedVideoExportMime();
+      if (!exportFormat) {
+        setStatus('Videoexport nicht möglich: Dieser Browser unterstützt keinen passenden MediaRecorder-Videoencoder.');
+        return;
+      }
+      if (!exportFormat.isMp4) {
+        setStatus('MP4-Export wird von diesem Browser nicht unterstützt. Exportiere stattdessen WebM ...');
+      } else {
+        setStatus('MP4-Export läuft ...');
+      }
+
+      const off = document.createElement('canvas');
+      off.width = canvas.width;
+      off.height = canvas.height;
+      const octx = off.getContext('2d');
+      const stream = off.captureStream(state.fps);
+      const rec = new MediaRecorder(stream, {
+        mimeType: exportFormat.mime,
+        videoBitsPerSecond: 12000000
+      });
+      const chunks = [];
+      rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+      const oldFrame = state.currentFrame;
+      const oldTime = video.currentTime;
+      const startF = Math.min(state.firstFrame, state.lastFrame ?? totalFrames());
+      const endF = Math.max(state.firstFrame, state.lastFrame ?? totalFrames());
+
+      rec.start(200);
+      for (let f = startF; f <= endF; f++) {
+        await gotoFrame(f);
+        octx.clearRect(0, 0, off.width, off.height);
+        octx.drawImage(video, 0, 0, off.width, off.height);
+        drawGridAndAxes();
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        octx.putImageData(img, 0, 0);
+        await new Promise(r => setTimeout(r, 1000 / state.fps));
+        setStatus((exportFormat.isMp4 ? 'MP4-Export' : 'WebM-Export') + ' läuft ... ' + (f - startF + 1) + '/' + (endF - startF + 1));
+      }
+      rec.stop();
+      await new Promise(resolve => rec.onstop = resolve);
+      const blob = new Blob(chunks, { type: exportFormat.mime });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'video_overlay_frames_' + startF + '_bis_' + endF + '.' + exportFormat.ext;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      await seekVideo(oldTime);
+      state.currentFrame = oldFrame;
+      draw();
+      setStatus(exportFormat.isMp4 ? 'MP4-Export abgeschlossen.' : 'Export abgeschlossen. Hinweis: MP4 wird von diesem Browser nicht unterstützt; es wurde WebM exportiert.');
+    });
+
+    $('setFirstFrameBtn').addEventListener('click', () => {
+      state.firstFrame = state.currentFrame;
+      if (state.lastFrame != null && state.firstFrame > state.lastFrame) {
+        state.lastFrame = state.firstFrame;
+      }
+      draw();
+      setStatus('Erster Frame festgelegt: ' + state.firstFrame);
+    });
+    $('setLastFrameBtn').addEventListener('click', () => {
+      state.lastFrame = state.currentFrame;
+      if (state.lastFrame < state.firstFrame) {
+        state.firstFrame = state.lastFrame;
+      }
+      draw();
+      setStatus('Letzter Frame festgelegt: ' + state.lastFrame);
+    });
+
+    $('trackingClearBtn').addEventListener('click', () => {
+      state.tracking.points = [];
+      updateNavigationUi();
+      draw();
+    });
+    $('trackingUndoBtn').addEventListener('click', () => {
+      state.tracking.points.pop();
+      updateNavigationUi();
+      draw();
+    });
+        $('fitRefreshBtn').addEventListener('click', () => { draw(); });
+
+
+    $('trackingClearBtn').addEventListener('click', () => {
+      state.tracking.points = [];
+      updateNavigationUi();
+      draw();
+    });
+    $('trackingUndoBtn').addEventListener('click', () => {
+      if (state.tracking.points.length) state.tracking.points.pop();
+      updateNavigationUi();
+      draw();
+    });
+    $('diagramType').addEventListener('change', () => { syncStateFromUi(); state.diagram.axisTitleX = null; state.diagram.axisTitleY = null; autoSetupDiagramRanges(); state.diagramAxesProfile = readAxesProfileFromState(); updateUiFromState(); draw(); });
+        $('fitRefreshBtn').addEventListener('click', () => { draw(); });
+
+    $('setT0AsFirstFrameBtn').addEventListener('click', () => {
+      let zeroFrame = state.t0Frame;
+      if (state.timeCal.calibrated) {
+        const idealZeroFrame = state.timeCal.anchorFrame - state.timeCal.anchorTime * state.fps;
+        const maxF = totalFrames();
+        if (idealZeroFrame < 0 || idealZeroFrame > maxF) {
+          setStatus('t=0 liegt außerhalb des Videos. Der erste Frame bleibt unverändert.');
+          return;
+        }
+        zeroFrame = Math.round(idealZeroFrame);
+      }
+      state.firstFrame = zeroFrame;
+      if (state.lastFrame != null && state.firstFrame > state.lastFrame) {
+        state.lastFrame = state.firstFrame;
+      }
+      draw();
+      setStatus('Der Frame bei t=0 wurde als erster Frame festgelegt.');
+    });
+
+    setActiveTab('axes');
+    updateUiFromState();
+    draw();
+    window.addEventListener('load', () => { draw(); });
+  </script>
+</body>
+</html>
